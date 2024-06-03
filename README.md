@@ -6,7 +6,7 @@ A minimal, robust, accurate, and real-time LiDAR odometry.
 <div align="center">
     <img src="mad-icp.gif" width="720"/>
 </div>
-This version is mainly for reviewers. Soon, you will be able to install this system via pip. Our <a href="paper_with_supplementary.pdf">preprint</a> is available for more details and results.
+This version is mainly for reviewers. Soon, you can install this system via `pip` and have a proper viewer. Our <a href="paper_with_supplementary.pdf">preprint</a> is available for more details and results.
 
 
 ## Building ##
