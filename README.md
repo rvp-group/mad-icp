@@ -36,7 +36,7 @@ Few other python packages need to be installed for running namely: `numpy`, `pyy
 
 We provide python luncher for both rosbags and bin formats (we are currently working on bin format luncher, for this reasons you do not find configurations for KITTI and Mulran). The configuration file is important for the sensor charecteristics and extrinsics information (most of the times ground truths are not in the LiDAR frame). The internal parameters are in `configurations/params.cfg`, all the exeperiments have been run with this same set.
 
-How to run:
+How to run (rosbag):
 ```python
 python3 rosbag_runner.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset.cfg --mad_icp_config ../configurations/params.cfg --num_cores 4 --num_keyframes 4 --realtime
 ```
