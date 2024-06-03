@@ -25,10 +25,7 @@ After obtaining all dependencies, the application can be built with CMake, for e
 
 ```bash
 cd mad-icp
-mkdir build
-cd build
-cmake ..
-make -j
+mkdir build && cd build && cmake .. && make -j
 ```
 
 ## Running
