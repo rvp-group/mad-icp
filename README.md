@@ -24,6 +24,7 @@ The following external dependencies are required.
 After obtaining all dependencies, the application can be built with CMake, for example as follows:
 
 ```bash
+cd mad-icp
 mkdir build
 cd build
 cmake ..
