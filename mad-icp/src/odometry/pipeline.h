@@ -44,9 +44,17 @@
 
 class Pipeline {
 public:
-  Pipeline(double sensor_hz, bool deskew, double b_max, double rho_ker,
-          double p_th, double b_min, double b_ratio, int num_keyframes,
-          int num_threads, bool realtime);
+  Pipeline(double sensor_hz,
+           bool deskew,
+           double b_max,
+           double rho_ker,
+           double p_th,
+           double b_min,
+           double b_ratio,
+           int num_keyframes,
+           int num_threads,
+           bool realtime);
+  ~Pipeline();
 
   // clang-format off
   const Eigen::Matrix<double, 4, 4> currentPose() const { return frame_to_map_.matrix(); }
@@ -61,7 +69,6 @@ public:
 
   const bool isMapUpdated();
   const LeafList& modelLeaves();
-  const void deleteOdometry();
   void compute(const double& curr_stamp, ContainerType curr_cloud_mem);
 
 protected:

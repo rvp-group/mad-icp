@@ -45,7 +45,7 @@ from pypeline import Pipeline, VectorEigen3d
 
 parser = argparse.ArgumentParser(description='mad-icp runner for rosbag')
 parser.add_argument('--data_path', help='path containing one or more rosbags (folder path)', required=True)
-parser.add_argument('--estimate_path', help='path containing one or more rosbags (folder path)', required=True)
+parser.add_argument('--estimate_path', help='trajectory estimate output path (folder path)', required=True)
 # dataset and mad-icp configurations
 parser.add_argument('--dataset_config', help='dataset configuration file', required=True)
 parser.add_argument('--mad_icp_config', help='parameters for mad icp', default="../configurations/params.cfg", required=True)
@@ -110,17 +110,16 @@ for filename in files_in_directory:
 			points = VectorEigen3d(points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("Time for reading points in ms:", t_delta.total_seconds() * 1000)
+			print("Time for reading points [ms]:", t_delta.total_seconds() * 1000)
 
 			t_start = datetime.now()
 			pipeline.compute(cloud_stamp, points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("Time for odometry estimation in ms:", t_delta.total_seconds() * 1000, "\n")
+			print("Time for odometry estimation [ms]:", t_delta.total_seconds() * 1000, "\n")
 
 			lidar_to_world = pipeline.currentPose()
 			write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base)
 
-pipeline.deleteOdometry()
 estimate_file.close()
 
