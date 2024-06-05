@@ -55,7 +55,7 @@ mkdir build && cd build && cmake -DCOMPILE_CPP_APPS=ON .. && make -j
 ```
 
 And run
-```
+```bash
 cd build/apps/cpp_runners
 ./bin_runner -data_path /path_to_bag_folder/ -estimate_path /path_to_estimate_folder/ -dataset_config ../../../configurations/datasets/dataset_config_file -mad_icp_config ../../../configurations/params.cfg -num_cores 4 -num_keyframes 4 -realtime
 ```
