@@ -40,7 +40,7 @@ We provide a Python launcher for both rosbags and bin formats (we are currently 
 How to run (rosbag), make sure `estimate_path` and `data_path` point to a folder:
 ```bash
 cd apps
-python3 rosbag_runner.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg --num_cores 4 --num_keyframes 4 --realtime
+python3 mad-icp.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg --num_cores 4 --num_keyframes 4 --realtime
 ```
 
 Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 components); in the near future, we will provide more available formats like TUM. 
