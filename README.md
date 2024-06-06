@@ -40,11 +40,11 @@ We provide a Python launcher for both rosbags and bin formats. The configuration
 How to run (make sure `estimate_path` and `data_path` point to a folder):
 ```bash
 cd apps
-python3 mad-icp.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg --num_cores 4 --num_keyframes 4 --realtime
+python3 mad-icp.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg 
 ```
 
 Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 components); in the near future, we will provide more available formats like TUM. 
-Our pipeline is anytime realtime, therefore you can play with parameters `num_keyframes` and `num_cores`, if you have enough computation we suggest to increase these (we run demo with 16 and 16), if not you can leave it in the proposed way.
+Our pipeline is anytime realtime, therefore you can play with parameters `num_keyframes` and `num_cores`, if you have enough computation we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`), if not you can leave it in the proposed way.
 
 ### (optional) Building and Running C++ Apps
 If you want to avoid Python, we provide a C++ executable that works just with binary cloud format (KITTI, Mulran, etc.), this file called `bin_runner` can be found in `build/apps/cpp_runners`.
@@ -57,7 +57,7 @@ mkdir build && cd build && cmake -DCOMPILE_CPP_APPS=ON .. && make -j
 And run
 ```bash
 cd build/apps/cpp_runners
-./bin_runner -data_path /path_to_bag_folder/ -estimate_path /path_to_estimate_folder/ -dataset_config ../../../configurations/datasets/dataset_config_file -mad_icp_config ../../../configurations/params.cfg -num_cores 4 -num_keyframes 4 -realtime
+./bin_runner -data_path /path_to_bag_folder/ -estimate_path /path_to_estimate_folder/ -dataset_config ../../../configurations/datasets/dataset_config_file -mad_icp_config ../../../configurations/params.cfg 
 ```
 If running on the KITTI dataset, make sure to enable the flag `-kitti` for KITTI scan correction (not documented anywhere). We do not (currently) provide a viewer for this executable. 
 
