@@ -38,7 +38,7 @@ SPHERE_SIZE = 0.20
 
 class Visualizer():
 	def __init__(self):
-		self.pause = True
+		self.pause = False
 		self.reset_view_point = True
 
 		self.current = o3d.geometry.PointCloud()
