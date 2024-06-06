@@ -7,7 +7,7 @@ A minimal, robust, accurate, and real-time LiDAR odometry.
     <img src="mad-icp.gif" width="720"/>
 </div>
 
-This version is mainly for reviewers. Soon, you can install this system via `pip` and have a proper viewer. Our <a href="paper_with_supplementary.pdf">preprint</a> is available for more details and results.
+This version is mainly for reviewers. Soon, you can install this system via `pip`. Our <a href="paper_with_supplementary.pdf">preprint</a> is available for more details and results.
 
 
 ## Building ##
@@ -33,7 +33,7 @@ mkdir build && cd build && cmake .. && make -j
 
 ## Running
 
-A few other Python packages need to be installed for running, namely: `numpy,` `pyyaml`, and `rosbags.` You can find the specific versions in the `requirements.txt`. We suggest to create a virtual env and run `pip3 install -r requirements.txt`.
+A few other Python packages need to be installed for running. You can find the specific versions in the `requirements.txt`. We suggest to create a virtual env and run `pip3 install -r requirements.txt`.
 
 We provide a Python launcher for both rosbags and bin formats (we are currently working on bin format luncher; for this reason, you do not find configurations for KITTI and Mulran). The configuration file is important for the sensor characteristics and extrinsic information (most of the time, ground truths are not in the LiDAR frame). The internal parameters are in `configurations/params.cfg`; all the experiments have been run with this same set.
 
@@ -63,6 +63,5 @@ If running on the KITTI dataset, make sure to enable the flag `-kitti` for KITTI
 
 
 ## What is missing?
-- A viewer for Python (coming soon)
 - `pip` package for easy install (coming soon)
 - ROS/ROS2 optional dependencies
