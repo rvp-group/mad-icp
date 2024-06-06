@@ -38,6 +38,7 @@ from rosbags.typesys import Stores, get_typestore
 
 from utils.point_cloud2 import read_point_cloud
 from utils.utils import write_transformed_pose
+from utils.visualizer import Visualizer
 
 # binded odometry
 sys.path.append("../build/src/odometry/")
@@ -94,6 +95,8 @@ pipeline = Pipeline(sensor_hz, deskew, b_max, rho_ker, p_th, b_min, b_ratio, arg
 
 typestore = get_typestore(Stores.ROS2_FOXY)
 
+visualizer = Visualizer()
+
 for filename in files_in_directory:
 	with AnyReader([filename], default_typestore=typestore) as reader:
 		connections = [x for x in reader.connections if x.topic == topic]
@@ -116,10 +119,19 @@ for filename in files_in_directory:
 			pipeline.compute(cloud_stamp, points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("Time for odometry estimation [ms]:", t_delta.total_seconds() * 1000, "\n")
+			print("Time for odometry estimation [ms]:", t_delta.total_seconds() * 1000)
 
 			lidar_to_world = pipeline.currentPose()
 			write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base)
+
+			t_start = datetime.now()
+			if pipeline.isMapUpdated():
+				visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose())
+			else:
+				visualizer.update(pipeline.currentLeaves(), None, lidar_to_world, None)
+			t_end = datetime.now()
+			t_delta = t_end - t_start
+			print("Time for visualization in ms:", t_delta.total_seconds() * 1000, "\n")
 
 estimate_file.close()
 

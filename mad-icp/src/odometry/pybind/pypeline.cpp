@@ -46,6 +46,5 @@ PYBIND11_MODULE(pypeline, m) {
                     .def("keyframeID", &Pipeline::keyframeID)
                     .def("modelLeaves", &Pipeline::modelLeaves)
                     .def("currentLeaves", &Pipeline::currentLeaves)
-                    .def("currentVelocity", &Pipeline::currentVelocity)
                     .def("compute", &Pipeline::compute);
 }

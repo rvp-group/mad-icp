@@ -123,7 +123,8 @@ void Pipeline::deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3
 
 void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   ContainerType* curr_cloud = &curr_cloud_mem;
-
+  is_map_updated_ = false;
+  
   if (!is_initialized_) {
     initialize(curr_stamp, curr_cloud);
     return;
@@ -285,18 +286,25 @@ void Pipeline::initialize(const double& curr_stamp, const ContainerTypePtr curr_
 }
 
 const bool Pipeline::isMapUpdated() {
-  bool to_return  = is_map_updated_;
-  is_map_updated_ = false;
-  return to_return;
+  return is_map_updated_;
 }
 
-const LeafList& Pipeline::modelLeaves() {
-  model_leaves_.clear();
-  std::back_insert_iterator<LeafList> leaves_it(model_leaves_);
+const ContainerType Pipeline::currentLeaves() {
+  ContainerType leaves;
+  std::back_insert_iterator<ContainerType> leaves_it(leaves);
+  for (MADtree* leaf : current_leaves_) {
+    ++leaves_it = leaf->mean_;
+  }
+  return leaves;
+}
+
+const ContainerType Pipeline::modelLeaves() {
+  ContainerType leaves;
+  std::back_insert_iterator<ContainerType> leaves_it(leaves);
   for (auto frame : keyframes_) {
     for (MADtree* leaf : frame->leaves_) {
-      ++leaves_it = leaf;
+      ++leaves_it = leaf->mean_;
     }
   }
-  return model_leaves_;
+  return leaves;
 }

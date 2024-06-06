@@ -59,16 +59,15 @@ public:
   // clang-format off
   const Eigen::Matrix<double, 4, 4> currentPose() const { return frame_to_map_.matrix(); }
   const std::vector<Eigen::Isometry3d>& trajectory() const { return trajectory_; }
-  const Eigen::Isometry3d& keyframePose() const { return keyframe_to_map_; }
+  const Eigen::Matrix<double, 4, 4> keyframePose() const { return keyframe_to_map_.matrix(); }
   const bool isInitialized() const { return is_initialized_; }
   const size_t currentID() const { return seq_; }
   const size_t keyframeID() const { return seq_keyframe_; }
-  const LeafList& currentLeaves() const { return current_leaves_; }
-  const Vector6d& currentVelocity() const { return current_velocity_; }
   // clang-format on
 
   const bool isMapUpdated();
-  const LeafList& modelLeaves();
+  const ContainerType currentLeaves();
+  const ContainerType modelLeaves();
   void compute(const double& curr_stamp, ContainerType curr_cloud_mem);
 
 protected:
