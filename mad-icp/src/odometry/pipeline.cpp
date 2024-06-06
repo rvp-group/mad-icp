@@ -31,23 +31,48 @@
 #include <filesystem>
 #include <tools/constants.h>
 
-Pipeline::Pipeline(double sensor_hz, bool deskew, double b_max, double rho_ker,
-                   double p_th, double b_min, double b_ratio, int num_keyframes,
-                   int num_threads, bool realtime)
-    : sensor_hz_(sensor_hz), deskew_(deskew), b_max_(b_max), p_th_(p_th), b_min_(b_min),
-    num_keyframes_(num_keyframes), num_threads_(num_threads), realtime_(realtime),
-    icp_(b_max, rho_ker, b_ratio, num_threads), vel_estimator_(sensor_hz) {
+Pipeline::Pipeline(double sensor_hz,
+                   bool deskew,
+                   double b_max,
+                   double rho_ker,
+                   double p_th,
+                   double b_min,
+                   double b_ratio,
+                   int num_keyframes,
+                   int num_threads,
+                   bool realtime) :
+  sensor_hz_(sensor_hz),
+  deskew_(deskew),
+  b_max_(b_max),
+  p_th_(p_th),
+  b_min_(b_min),
+  num_keyframes_(num_keyframes),
+  num_threads_(num_threads),
+  realtime_(realtime),
+  icp_(b_max, rho_ker, b_ratio, num_threads),
+  vel_estimator_(sensor_hz) {
   current_tree_ = nullptr;
   frame_to_map_.setIdentity();
   keyframe_to_map_.setIdentity();
   current_velocity_.setZero();
-  seq_ = 0;
-  seq_keyframe_ = 0;
+  seq_            = 0;
+  seq_keyframe_   = 0;
   is_initialized_ = false;
   is_map_updated_ = false;
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads));
   omp_set_num_threads(num_threads);
+}
+
+Pipeline::~Pipeline() {
+  while (!frames_.empty()) {
+    delete frames_.front()->tree_;
+    frames_.pop_front();
+  }
+  while (!keyframes_.empty()) {
+    delete keyframes_.front()->tree_;
+    keyframes_.pop_front();
+  }
 }
 
 void Pipeline::deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3d& T_prev, const Eigen::Isometry3d& T_now) {
@@ -98,7 +123,8 @@ void Pipeline::deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3
 
 void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   ContainerType* curr_cloud = &curr_cloud_mem;
-
+  is_map_updated_ = false;
+  
   if (!is_initialized_) {
     initialize(curr_stamp, curr_cloud);
     return;
@@ -188,7 +214,7 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
 
   vel_estimator_.init(current_velocity_);
   vel_estimator_.setOdometry(odom_window);
-  
+
   vel_estimator_.oneRound();
   current_velocity_ = vel_estimator_.X_;
 
@@ -260,29 +286,25 @@ void Pipeline::initialize(const double& curr_stamp, const ContainerTypePtr curr_
 }
 
 const bool Pipeline::isMapUpdated() {
-  bool to_return  = is_map_updated_;
-  is_map_updated_ = false;
-  return to_return;
+  return is_map_updated_;
 }
 
-const LeafList& Pipeline::modelLeaves() {
-  model_leaves_.clear();
-  std::back_insert_iterator<LeafList> leaves_it(model_leaves_);
+const ContainerType Pipeline::currentLeaves() {
+  ContainerType leaves;
+  std::back_insert_iterator<ContainerType> leaves_it(leaves);
+  for (MADtree* leaf : current_leaves_) {
+    ++leaves_it = leaf->mean_;
+  }
+  return leaves;
+}
+
+const ContainerType Pipeline::modelLeaves() {
+  ContainerType leaves;
+  std::back_insert_iterator<ContainerType> leaves_it(leaves);
   for (auto frame : keyframes_) {
     for (MADtree* leaf : frame->leaves_) {
-      ++leaves_it = leaf;
+      ++leaves_it = leaf->mean_;
     }
   }
-  return model_leaves_;
-}
-
-const void Pipeline::deleteOdometry() {
-  while (!frames_.empty()) {
-    delete frames_.front()->tree_;
-    frames_.pop_front();
-  }
-  while (!keyframes_.empty()) {
-    delete keyframes_.front()->tree_;
-    keyframes_.pop_front();
-  }
+  return leaves;
 }

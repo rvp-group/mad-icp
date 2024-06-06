@@ -38,6 +38,7 @@ from rosbags.typesys import Stores, get_typestore
 
 from utils.point_cloud2 import read_point_cloud
 from utils.utils import write_transformed_pose
+from utils.visualizer import Visualizer
 
 # binded odometry
 sys.path.append("../build/src/odometry/")
@@ -45,7 +46,7 @@ from pypeline import Pipeline, VectorEigen3d
 
 parser = argparse.ArgumentParser(description='mad-icp runner for rosbag')
 parser.add_argument('--data_path', help='path containing one or more rosbags (folder path)', required=True)
-parser.add_argument('--estimate_path', help='path containing one or more rosbags (folder path)', required=True)
+parser.add_argument('--estimate_path', help='trajectory estimate output path (folder path)', required=True)
 # dataset and mad-icp configurations
 parser.add_argument('--dataset_config', help='dataset configuration file', required=True)
 parser.add_argument('--mad_icp_config', help='parameters for mad icp', default="../configurations/params.cfg", required=True)
@@ -94,6 +95,8 @@ pipeline = Pipeline(sensor_hz, deskew, b_max, rho_ker, p_th, b_min, b_ratio, arg
 
 typestore = get_typestore(Stores.ROS2_FOXY)
 
+visualizer = Visualizer()
+
 for filename in files_in_directory:
 	with AnyReader([filename], default_typestore=typestore) as reader:
 		connections = [x for x in reader.connections if x.topic == topic]
@@ -110,17 +113,25 @@ for filename in files_in_directory:
 			points = VectorEigen3d(points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("Time for reading points in ms:", t_delta.total_seconds() * 1000)
+			print("Time for reading points [ms]:", t_delta.total_seconds() * 1000)
 
 			t_start = datetime.now()
 			pipeline.compute(cloud_stamp, points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("Time for odometry estimation in ms:", t_delta.total_seconds() * 1000, "\n")
+			print("Time for odometry estimation [ms]:", t_delta.total_seconds() * 1000)
 
 			lidar_to_world = pipeline.currentPose()
 			write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base)
 
-pipeline.deleteOdometry()
+			t_start = datetime.now()
+			if pipeline.isMapUpdated():
+				visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose())
+			else:
+				visualizer.update(pipeline.currentLeaves(), None, lidar_to_world, None)
+			t_end = datetime.now()
+			t_delta = t_end - t_start
+			print("Time for visualization in ms:", t_delta.total_seconds() * 1000, "\n")
+
 estimate_file.close()
 

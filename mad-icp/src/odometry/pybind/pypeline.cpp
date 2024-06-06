@@ -26,20 +26,25 @@ PYBIND11_MODULE(pypeline, m) {
     m, "VectorEigen3d", "std::vector<Eigen::Vector3d>", py11::py_array_to_vectors_double<Eigen::Vector3d>);
 
   auto pipeline = py11::class_<Pipeline>(m, "Pipeline")
-    .def(py11::init<double, bool, double, double, double, double, double, int, int, bool>(),
-         py11::arg("sensor_hz"), py11::arg("deskew"), py11::arg("b_max"), py11::arg("rho_ker"),
-         py11::arg("p_th"), py11::arg("b_min"), py11::arg("b_ratio"), py11::arg("num_keyframes"),
-         py11::arg("num_threads"), py11::arg("realtime"))
-    .def("currentPose", &Pipeline::currentPose)
-    .def("trajectory", &Pipeline::trajectory)
-    .def("keyframePose", &Pipeline::keyframePose)
-    .def("isInitialized", &Pipeline::isInitialized)
-    .def("isMapUpdated", &Pipeline::isMapUpdated)
-    .def("currentID", &Pipeline::currentID)
-    .def("keyframeID", &Pipeline::keyframeID)
-    .def("modelLeaves", &Pipeline::modelLeaves)
-    .def("currentLeaves", &Pipeline::currentLeaves)
-    .def("currentVelocity", &Pipeline::currentVelocity)
-    .def("compute", &Pipeline::compute)
-    .def("deleteOdometry", &Pipeline::deleteOdometry);
+                    .def(py11::init<double, bool, double, double, double, double, double, int, int, bool>(),
+                         py11::arg("sensor_hz"),
+                         py11::arg("deskew"),
+                         py11::arg("b_max"),
+                         py11::arg("rho_ker"),
+                         py11::arg("p_th"),
+                         py11::arg("b_min"),
+                         py11::arg("b_ratio"),
+                         py11::arg("num_keyframes"),
+                         py11::arg("num_threads"),
+                         py11::arg("realtime"))
+                    .def("currentPose", &Pipeline::currentPose)
+                    .def("trajectory", &Pipeline::trajectory)
+                    .def("keyframePose", &Pipeline::keyframePose)
+                    .def("isInitialized", &Pipeline::isInitialized)
+                    .def("isMapUpdated", &Pipeline::isMapUpdated)
+                    .def("currentID", &Pipeline::currentID)
+                    .def("keyframeID", &Pipeline::keyframeID)
+                    .def("modelLeaves", &Pipeline::modelLeaves)
+                    .def("currentLeaves", &Pipeline::currentLeaves)
+                    .def("compute", &Pipeline::compute);
 }

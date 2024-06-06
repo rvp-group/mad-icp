@@ -1,3 +1,5 @@
 PyYAML==6.0.1
 numpy==1.24.4
 rosbags==0.9.23
+open3d==0.13.0
+matplotlib==3.1.2

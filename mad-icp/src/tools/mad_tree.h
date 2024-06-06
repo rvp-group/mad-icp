@@ -42,7 +42,7 @@ class MADtree;
 using ContainerType    = std::vector<Eigen::Vector3d>;
 using ContainerTypePtr = ContainerType*;
 using IteratorType     = typename ContainerType::iterator;
-using LeafList       = std::vector<MADtree*>;
+using LeafList         = std::vector<MADtree*>;
 
 struct MADtree {
   MADtree(const ContainerTypePtr vec,
