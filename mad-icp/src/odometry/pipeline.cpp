@@ -123,8 +123,8 @@ void Pipeline::deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3
 
 void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   ContainerType* curr_cloud = &curr_cloud_mem;
-  is_map_updated_ = false;
-  
+  is_map_updated_           = false;
+
   if (!is_initialized_) {
     initialize(curr_stamp, curr_cloud);
     return;
@@ -159,7 +159,6 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   gettimeofday(&preprocessing_end, nullptr);
   timersub(&preprocessing_end, &preprocessing_start, &preprocessing_delta);
   const float preprocessing_time = float(preprocessing_delta.tv_sec) * 1000. + 1e-3 * preprocessing_delta.tv_usec;
-  // std::cout << "Preprocessing time in ms: " << preprocessing_time << std::endl;
 
   struct timeval icp_start, icp_end, icp_delta;
 
@@ -189,7 +188,6 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     gettimeofday(&icp_end, nullptr);
     timersub(&icp_end, &icp_start, &icp_delta);
     icp_time = float(icp_delta.tv_sec) * 1000. + 1e-3 * icp_delta.tv_usec;
-    // std::cout << "icp_time: " << icp_time << std::endl << std::endl;
     total_icp_time += icp_time;
   }
 
@@ -203,7 +201,6 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   }
 
   double inliers_ratio = double(matched_leaves) / double(current_leaves_.size());
-  // std::cout << "Inliers ratio: " << inliers_ratio << std::endl;
 
   trajectory_.push_back(frame_to_map_);
 

@@ -42,8 +42,6 @@ class MADicp {
 public:
   using JacobianMatrixType = Eigen::Matrix<double, 1, 6>;
 
-  // MADicp();
-
   MADicp(double min_ball, double rho_ker, double b_ratio, int num_threads);
 
   void resetAdders();
