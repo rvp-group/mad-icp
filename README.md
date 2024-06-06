@@ -43,7 +43,7 @@ cd apps
 python3 mad-icp.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg 
 ```
 
-Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 components); in the near future, we will provide more available formats like TUM. 
+Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 scalars); in the near future, we will provide more available formats like TUM. 
 Our pipeline is anytime realtime, therefore you can play with parameters `num_keyframes` and `num_cores`, if you have enough computation we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`), if not you can leave it in the proposed way.
 
 ### (optional) Building and Running C++ Apps
