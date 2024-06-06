@@ -46,7 +46,6 @@ from pypeline import Pipeline, VectorEigen3d
 
 
 console = Console()
-visualizer = Visualizer()
 
 class InputDataInterface(str, Enum):
     kitti = "kitti",
@@ -71,11 +70,17 @@ def main(data_path: Annotated[
 				 num_keyframes: Annotated[
     int, typer.Option(help="max number of kf kept in the local map (suggest as num threads)", show_default=True)] = 4, 
 				 realtime: Annotated[
-    bool, typer.Option(help="if true anytime realtime", show_default=True)] = False) -> None:
+    bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
+				 noviz: Annotated[
+    bool, typer.Option(help="if true visualizer on", show_default=True)] = False) -> None:
 	
 	if not data_path.is_dir() or not estimate_path.is_dir() or not dataset_config.is_file():
-		console.print("[red] Input dir or file are not correct")
+		console.print("[red] Input dir or file not correct")
 		sys.exit(-1)
+		
+	visualizer = None
+	if not noviz:
+		visualizer = Visualizer()
 	
 	reader_type = InputDataInterface.kitti
 	if len(list(data_path.glob("*.bag"))) != 0:
@@ -137,15 +142,15 @@ def main(data_path: Annotated[
 			lidar_to_world = pipeline.currentPose()
 			write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base)
 
-			t_start = datetime.now()
-			if pipeline.isMapUpdated():
-				visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose())
-			else:
-				visualizer.update(pipeline.currentLeaves(), None, lidar_to_world, None)
-			t_end = datetime.now()
-			t_delta = t_end - t_start
-			print("Time for visualization [ms]:", t_delta.total_seconds() * 1000, "\n")
-			print("\r")
+			if not noviz:
+				t_start = datetime.now()
+				if pipeline.isMapUpdated():
+					visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose())
+				else:
+					visualizer.update(pipeline.currentLeaves(), None, lidar_to_world, None)
+				t_end = datetime.now()
+				t_delta = t_end - t_start
+				print("Time for visualization [ms]:", t_delta.total_seconds() * 1000, "\n")
 			
 			t_start = datetime.now()
 
