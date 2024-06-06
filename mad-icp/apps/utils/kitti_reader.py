@@ -1,7 +1,5 @@
-import os
-import sys
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple
 import natsort
 import pickle
 import numpy as np
@@ -26,6 +24,10 @@ class KittiReader:
         self.time_inc = 1./sensor_hz
         self.file_index = 0
         self.data_dir = data_dir
+        self.cdtype = np.float32
+        if (self.data_dir / ".dtype.pkl").exists():
+            f = open(self.data_dir / ".dtype.pkl", "rb")
+            self.cdtype = pickle.load(f)
 
     def __len__(self):
         return len(self.file_names)
@@ -37,18 +39,17 @@ class KittiReader:
         return
 
     def __getitem__(self, item) -> Tuple[float, Tuple[np.ndarray, np.ndarray]]:
-        
-        with open(self.data_dir / ".dtype.pkl", "rb") as f:
-            cdtype = pickle.load(f)
-
-        cloud_np = np.fromfile(self.file_names[self.file_index], dtype=cdtype)
-        pts = np.stack([
-        cloud_np["x"],
-        cloud_np["y"],
-        cloud_np["z"],
-        cloud_np["intensity"]], axis=1)
+        cloud_np = np.fromfile(self.file_names[self.file_index], dtype=self.cdtype)
+        # with open(self.file_names[self.file_index], 'rb') as f:
+        #     buffer = f.read()
+        #     cloud_np = np.frombuffer(buffer, dtype=self.cdtype)
+        cloud_np = cloud_np.reshape(-1, 4)[:, :3]
         # if (point.norm() < min_range || point.norm() > max_range || std::isnan(point.x()) || std::isnan(point.y()) ||
         #   std::isnan(point.z()))
+        norms = np.linalg.norm(cloud_np, axis=1)
+        mask = (norms >= self.min_range) & (norms <= self.max_range)
+        # Use the mask to filter the points
+        filtered_points = cloud_np[mask]
         self.time += self.time_inc
         self.file_index += 1
-        return self.time, cloud_np
+        return self.time, filtered_points

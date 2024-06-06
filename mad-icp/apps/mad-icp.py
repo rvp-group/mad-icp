@@ -38,6 +38,7 @@ from datetime import datetime
 from utils.utils import write_transformed_pose
 from utils.ros_reader import Ros1Reader
 from utils.kitti_reader import KittiReader
+from utils.visualizer import Visualizer
 
 sys.path.append("../build/src/odometry/")
 # binded odometry
@@ -45,6 +46,7 @@ from pypeline import Pipeline, VectorEigen3d
 
 
 console = Console()
+visualizer = Visualizer()
 
 class InputDataInterface(str, Enum):
     kitti = "kitti",
@@ -72,17 +74,17 @@ def main(data_path: Annotated[
     bool, typer.Option(help="if true anytime realtime", show_default=True)] = False) -> None:
 	
 	if not data_path.is_dir() or not estimate_path.is_dir() or not dataset_config.is_file():
-		console.print("[red] input dir or file are not correct")
+		console.print("[red] Input dir or file are not correct")
 		sys.exit(-1)
 	
 	reader_type = InputDataInterface.kitti
-	if "bag" in data_path.glob("*.bag").__next__().suffix:
-		console.print("[yellow] the dataset is in rosbag format")
+	if len(list(data_path.glob("*.bag"))) != 0:
+		console.print("[yellow] The dataset is in rosbag format")
 		reader_type = InputDataInterface.ros1
 	else:
-		console.print("[yellow] the dataset is in kitti format")
+		console.print("[yellow] The dataset is in kitti format")
 
-	console.print("[green] parsing dataset configuration file")
+	console.print("[green] Parsing dataset configuration file")
 	data_config_file = open(dataset_config, 'r')
 	data_cf = yaml.safe_load(data_config_file)
 	min_range = data_cf["min_range"] 
@@ -94,7 +96,7 @@ def main(data_path: Annotated[
 		topic = data_cf["rosbag_topic"]
 	lidar_to_base = np.array(data_cf["lidar_to_base"])
 
-	console.print("[green] parsing mad-icp configuration file")
+	console.print("[green] Parsing mad-icp configuration file")
 	mad_icp_config_file = open(mad_icp_config, 'r')
 	mad_icp_cf = yaml.safe_load(mad_icp_config_file)
 	b_max = mad_icp_cf["b_max"]
@@ -106,28 +108,46 @@ def main(data_path: Annotated[
 
 	# check some params for machine
 	if(realtime and num_keyframes > num_cores):
-		console.print("[red] if you chose realtime option, we suggest to chose a num_cores at least >= than the num_keyframes")
+		console.print("[red] If you chose realtime option, we suggest to chose a num_cores at least >= than the num_keyframes")
 		sys.exit(-1)
 
-	console.print("[green] setting up pipeline for odometry estimation")
+	console.print("[green] Setting up pipeline for odometry estimation")
 	pipeline = Pipeline(sensor_hz, deskew, b_max, rho_ker, p_th, b_min, b_ratio, num_keyframes, num_cores, realtime)
 
 	estimate_file_name = estimate_path / "estimate.txt"
 	estimate_file = open(estimate_file_name, 'w')
 
-	with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic, sensor_hz) as reader:
+	with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz) as reader:
+		t_start = datetime.now()
 		for ts, points in track(reader, description="processing..."):
 
-      # print("Loading frame #", pipeline.currentID())
-			t_start = datetime.now()
+			print("Loading frame #", pipeline.currentID())
+
 			points = VectorEigen3d(points)
+			t_end = datetime.now()
+			t_delta = t_end - t_start
+			print("Time for reading points [ms]: ", t_delta.total_seconds() * 1000)
+
+			t_start = datetime.now()
 			pipeline.compute(ts, points)
 			t_end = datetime.now()
 			t_delta = t_end - t_start
-			print("time for odometry estimation in ms: ", t_delta.total_seconds() * 1000, "\n")
+			print("Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
 
 			lidar_to_world = pipeline.currentPose()
 			write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base)
+
+			t_start = datetime.now()
+			if pipeline.isMapUpdated():
+				visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose())
+			else:
+				visualizer.update(pipeline.currentLeaves(), None, lidar_to_world, None)
+			t_end = datetime.now()
+			t_delta = t_end - t_start
+			print("Time for visualization [ms]:", t_delta.total_seconds() * 1000, "\n")
+			print("\r")
+			
+			t_start = datetime.now()
 
 	estimate_file.close()
 

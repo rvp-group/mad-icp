@@ -21,7 +21,7 @@ class Ros1Reader:
         try:
             from rosbags.highlevel import AnyReader
         except ModuleNotFoundError:
-            print("rosbags library not installed, run 'pip install -U rosbags'")
+            print("Rosbags library not installed, run 'pip install -U rosbags'")
             sys.exit(-1)
 
         if data_dir.is_file():
