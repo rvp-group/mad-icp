@@ -6,6 +6,6 @@ add_library(odometry STATIC
 
 target_link_libraries(odometry
   tools
+  Eigen3::Eigen
 )
-
 target_compile_features(odometry PUBLIC)

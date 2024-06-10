@@ -13,8 +13,7 @@ option(COMPILE_CPP_APPS "Set to ON to compile C++ applications" OFF)
 
 # Eigen
 # TODO: Detect if Eigen exists in system, oterwhise, download it through FetchContent
-find_package(Eigen3 3.3 NO_MODULE)
-
+# find_package(Eigen3 3.3 NO_MODULE)
 if(NOT DEFINED Eigen3_FOUND)
     message(CHECK_START "Fetching Eigen3")
     list(APPEND CMAKE_MESSAGE_INDENT "  ")
@@ -22,21 +21,13 @@ if(NOT DEFINED Eigen3_FOUND)
     include(FetchContent)
     FetchContent_Declare(
         Eigen
-        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG master
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE)
+        URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz)
+    FetchContent_GetProperties(Eigen)
 
-    # note: To disable eigen tests,
-    # you should put this code in a add_subdirectory to avoid to change
-    # BUILD_TESTING for your own project too since variables are directory
-    # scoped
-    set(BUILD_TESTING OFF)
-    set(EIGEN_BUILD_TESTING OFF)
-    set(EIGEN_MPL2_ONLY ON)
-    set(EIGEN_BUILD_PKGCONFIG OFF)
-    set(EIGEN_BUILD_DOC OFF)
-    FetchContent_MakeAvailable(Eigen)
+    if(NOT eigen_POPULATED)
+        FetchContent_Populate(Eigen)
+        add_subdirectory(${eigen_SOURCE_DIR} ${eigen_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endif()
 
     list(POP_BACK CMAKE_MESSAGE_INDENT)
     message(CHECK_PASS "fetched")
@@ -52,7 +43,8 @@ find_package(pybind11 REQUIRED)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/src
-    ${EIGEN3_INCLUDE_DIR}
+
+    # ${EIGEN3_INCLUDE_DIR}
     ${PYTHON_INCLUDE_DIRS}
 )
 
