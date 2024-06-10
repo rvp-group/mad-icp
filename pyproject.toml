@@ -13,10 +13,8 @@ authors = [
     { name = "Leonardo Brizi", email = "brizi@diag.uniroma1.it" },
     { name = "Emanuele Giacomini", email = "giacomini@diag.uniroma1.it" },
 ]
-keywords = [
-"LiDAR",
-"TODO"
-]
+keywords = ["LiDAR", "TODO"]
+requires-python = ">=3.8"
 
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -46,5 +44,5 @@ Homepage = "https://github.com/rvp-group/mad-icp"
 build-dir = "build/{wheel_tag}"
 cmake.source-dir = "mad_icp/"
 cmake.verbose = false
-cmake.minimum-version = "3.8"
+cmake.version = ">=3.8"
 wheel.install-dir = "mad_icp/src/pybind"
