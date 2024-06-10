@@ -13,7 +13,34 @@ option(COMPILE_CPP_APPS "Set to ON to compile C++ applications" OFF)
 
 # Eigen
 # TODO: Detect if Eigen exists in system, oterwhise, download it through FetchContent
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3 NO_MODULE)
+
+if(not Eigen3_FOUND)
+    message(CHECK_START "Fetching Eigen3")
+    list(APPEND CMAKE_MESSAGE_INDENT "  ")
+
+    include(FetchContent)
+    FetchContent_Declare(
+        Eigen
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE)
+
+    # note: To disable eigen tests,
+    # you should put this code in a add_subdirectory to avoid to change
+    # BUILD_TESTING for your own project too since variables are directory
+    # scoped
+    set(BUILD_TESTING OFF)
+    set(EIGEN_BUILD_TESTING OFF)
+    set(EIGEN_MPL2_ONLY ON)
+    set(EIGEN_BUILD_PKGCONFIG OFF)
+    set(EIGEN_BUILD_DOC OFF)
+    FetchContent_MakeAvailable(Eigen)
+
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
+    message(CHECK_PASS "fetched")
+endif()
 
 # OpenMP
 find_package(OpenMP REQUIRED)
