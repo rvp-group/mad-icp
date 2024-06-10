@@ -1,0 +1,25 @@
+name: Python API Build
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: []
+
+jobs:
+  python_package:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+      - name: Build pip package
+        run: |
+          python -m pip install .
