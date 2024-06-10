@@ -1,4 +1,4 @@
-name: Python API Build
+name: pypy_devel API Build
 on:
   push:
     branches: ["pypi_devel"]
