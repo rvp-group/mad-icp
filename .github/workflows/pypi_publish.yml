@@ -15,9 +15,6 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build sdist
         run: pipx run build --sdist ${{github.workspace}}
-      - name: Move sdist to dist
-        run: mkdir -p dist && mv ${{github.workspace}}/dist/*.tar.gz dist/
-
       - uses: actions/upload-artifact@v3
         with:
           path: dist/*.tar.gz
