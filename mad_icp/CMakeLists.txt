@@ -15,7 +15,7 @@ option(COMPILE_CPP_APPS "Set to ON to compile C++ applications" OFF)
 # TODO: Detect if Eigen exists in system, oterwhise, download it through FetchContent
 find_package(Eigen3 3.3 NO_MODULE)
 
-if(not Eigen3_FOUND)
+if(NOT DEFINED Eigen3_FOUND)
     message(CHECK_START "Fetching Eigen3")
     list(APPEND CMAKE_MESSAGE_INDENT "  ")
 
