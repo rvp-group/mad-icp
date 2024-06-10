@@ -29,7 +29,7 @@ dependencies = [
     "rosbags",
     "open3d",
     "matplotlib",
-    "typer[all]>=0.10.0",
+    "typer>=0.10.0",
     "natsort",
     "rich",
 ]
