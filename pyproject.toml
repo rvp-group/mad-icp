@@ -29,7 +29,7 @@ dependencies = [
     "PyYAML",
     "numpy",
     "rosbags",
-    "open3d>=0.13.0",
+    "open3d",
     "matplotlib",
     "typer[all]>=0.10.0",
     "natsort",
