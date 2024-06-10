@@ -13,7 +13,11 @@ authors = [
     { name = "Leonardo Brizi", email = "brizi@diag.uniroma1.it" },
     { name = "Emanuele Giacomini", email = "giacomini@diag.uniroma1.it" },
 ]
-keywords = ["TODO"]
+keywords = [
+"LiDAR",
+"TODO"
+]
+
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: BSD License",
