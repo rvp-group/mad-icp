@@ -1,4 +1,4 @@
-add_library(tools SHARED
+add_library(tools STATIC
   mad_tree.cpp
 )
 

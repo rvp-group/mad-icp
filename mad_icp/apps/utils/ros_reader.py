@@ -31,12 +31,13 @@ import sys
 from pathlib import Path
 from typing import Tuple
 import natsort
-from utils.point_cloud2 import read_point_cloud
+from mad_icp.apps.utils.point_cloud2 import read_point_cloud
 import numpy as np
 
+
 class Ros1Reader:
-    def __init__(self, data_dir: Path, min_range = 0, 
-                 max_range = 200, *args, **kwargs):
+    def __init__(self, data_dir: Path, min_range=0,
+                 max_range=200, *args, **kwargs):
         """
         :param data_dir: Directory containing rosbags or path to a rosbag file
         :param topics: Topic to read
@@ -53,11 +54,12 @@ class Ros1Reader:
             sys.exit(-1)
 
         if data_dir.is_file():
-            #self.sequence_id = os.path.basename(data_dir).split(".")[0]
+            # self.sequence_id = os.path.basename(data_dir).split(".")[0]
             self.bag = AnyReader([data_dir])
         else:
-            #self.sequence_id = os.path.basename(data_dir[0]).split(".")[0]
-            self.bag = AnyReader(natsort.natsorted([bag for bag in list(data_dir.glob("*.bag"))]))
+            # self.sequence_id = os.path.basename(data_dir[0]).split(".")[0]
+            self.bag = AnyReader(natsort.natsorted(
+                [bag for bag in list(data_dir.glob("*.bag"))]))
             print("Reading multiple .bag files in directory:")
             print("\n".join([path.name for path in self.bag.paths]))
 
@@ -90,5 +92,6 @@ class Ros1Reader:
         connection, timestamp, rawdata = next(self.msgs)
         msg = self.bag.deserialize(rawdata, connection.msgtype)
         cloud_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-        points, _ = read_point_cloud(msg, min_range=self.min_range, max_range=self.max_range)
+        points, _ = read_point_cloud(
+            msg, min_range=self.min_range, max_range=self.max_range)
         return timestamp, points
