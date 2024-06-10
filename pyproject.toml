@@ -1,0 +1,48 @@
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mad-icp"
+version = "0.0.1"
+description = "It Is All About Matching Data -- Robust and Informed LiDAR Odometry"
+readme = "README.md"
+authors = [
+    { name = "Simone Ferrari", email = "s.ferrari@diag.uniroma1.it" },
+    { name = "Luca Di Giammarino", email = "digiammarino@diag.uniroma1.it" },
+    { name = "Leonardo Brizi", email = "brizi@diag.uniroma1.it" },
+    { name = "Emanuele Giacomini", email = "giacomini@diag.uniroma1.it" },
+]
+keywords = ["LiDAR", "TODO"]
+requires-python = ">=3.8"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: Unix",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "PyYAML",
+    "numpy",
+    "rosbags",
+    "open3d",
+    "matplotlib",
+    "typer>=0.10.0",
+    "natsort",
+    "rich",
+]
+
+[project.scripts]
+mad_icp = "mad_icp.apps.mad_icp:run"
+
+[project.urls]
+Homepage = "https://github.com/rvp-group/mad-icp"
+
+[tool.scikit-build]
+build-dir = "build/{wheel_tag}"
+cmake.source-dir = "mad_icp/"
+cmake.verbose = false
+cmake.version = ">=3.8"
+wheel.install-dir = "mad_icp/src/pybind"
