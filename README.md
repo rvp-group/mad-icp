@@ -77,5 +77,17 @@ cd build/apps/cpp_runners
 >[!IMPORTANT]
  >If running on the KITTI dataset, enable the flag `-kitti` for KITTI scan correction (not documented anywhere). We do not (currently) provide a viewer for this executable. 
 
-# :pencil: What is missing?
+# What is missing?
 - ROS/ROS2 optional dependencies
+
+# Cite us
+Our work is currently under review; in the meantime, if you use any of this code, here is the preprint information:
+
+```
+@article{ferrari2024mad,
+  title={MAD-ICP: It Is All About Matching Data--Robust and Informed LiDAR Odometry},
+  author={Ferrari, Simone and Di Giammarino, Luca and Brizi, Leonardo and Grisetti, Giorgio},
+  journal={arXiv preprint arXiv:2405.05828},
+  year={2024}
+}
+```
