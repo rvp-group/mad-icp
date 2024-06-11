@@ -16,6 +16,13 @@ option(COMPILE_CPP_APPS "Set to ON to compile C++ applications" OFF)
 find_package(Eigen3 3.3 NO_MODULE)
 
 if(NOT DEFINED Eigen3_DIR)
+    message("Eigen3_DIR is not defined")
+else()
+    message("Eigen3_DIR is defined")
+    message("Its value is ${Eigen3_DIR}")
+endif()
+
+if(NOT DEFINED Eigen3_DIR)
     message(CHECK_START "Fetching Eigen3")
     list(APPEND CMAKE_MESSAGE_INDENT "  ")
 
