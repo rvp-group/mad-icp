@@ -1,5 +1,7 @@
 <div align="center">
     <a href="https://github.com/rvp-group/mad-icp/actions/workflows/pythonbuild.yml"><img src="https://github.com/rvp-group/mad-icp/actions/workflows/pythonbuild.yml/badge.svg"/></a>
+    <a href="https://github.com/rvp-group/mad-icp"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/rvp-group/mad-icp"></a>
+    <a href="https://pypi.org/project/mad-icp/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/mad-icp"></a>
     <h1>MAD-ICP</h1>
     <h3>It Is All About Matchign Data -- Robust and Informed LiDAR Odometry</h3>
     <h3>
