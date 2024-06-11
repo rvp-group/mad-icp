@@ -13,18 +13,18 @@
     <br />   
 </div>
 
-# :gift: Install 
-You can download MAD-ICP using pip
+# Install using `pip`
+You can download/install MAD-ICP using `pip`
 ```bash
 pip install mad-icp
 ```
 
-# :rocket: Usage
+# Usage
 
 We provide a Python launcher for Rosbag1, Rosbag2, and KITTI binary formats. The dataset configuration file is important for the sensor characteristics and extrinsic information (typically, ground truths are not expressed in the LiDAR frame). 
 
-The internal parameters are in `configurations/params.cfg`. All the experiments have been run with this same set.
-To run the pipeline, choose the appropriate dataset configuration file (`kitti.cfg`for this example) and type:
+The internal parameters are in `configurations/params.cfg` (at the moment if you install this via `pip` you need to clone the repo). All the experiments have been run with this same set.
+To run the pipeline, choose the appropriate dataset configuration file (`kitti.cfg` for this example) and type:
 ```bash
 cd mad-icp/
 mad_icp --data-path /input_dir/ \
@@ -36,7 +36,9 @@ Our runner directly saves the odometry estimate file in KITTI format (homogenous
 
 Our pipeline is `anytime realtime`! You can play with parameters `num_keyframes` and `num_cores` and, if you have enough _computation capacity_, we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`).
 
-# :hammer: Building 
+____________________________________________________________________
+
+# Building from source
 
 Building is tested by our CI/CD pipeline for Ubuntu 20.04 and Ubuntu 22.04 (using g++).
 
@@ -58,7 +60,7 @@ Moreover, you can build the C++ library (along with the pybinds) by typing:
 mkdir build && cd build && cmake ../mad_icp && make -j8
 ```
 
-## :godmode: Building and Running C++ Apps \[Optional\]
+## Building and Running C++ Apps \[Optional\]
 If you want to avoid Python, we provide the `bin_runner` C++ executable (located in `mad_icp/apps/cpp_runners/bin_runner.cpp`) that accepts binary cloud format (KITTI, Mulran, etc.).
 You can build the executable using
 ```bash
