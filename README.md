@@ -1,67 +1,77 @@
-# MAD-ICP
-
-## It Is All About Matching Data -- Robust and Informed LiDAR Odometry
-
-A minimal, robust, accurate, and real-time LiDAR odometry.
 <div align="center">
-    <img src="mad-icp.gif" width="720"/>
+    <a href="https://github.com/rvp-group/mad-icp/actions/workflows/pythonbuild.yml"><img src="https://github.com/rvp-group/mad-icp/actions/workflows/pythonbuild.yml/badge.svg"/></a>
+    <h1>MAD-ICP</h1>
+    <h3>It Is All About Matchign Data -- Robust and Informed LiDAR Odometry</h3>
+    <h3>
+        <a href="https://github.com/rvp-group/mad-icp/blob/main/paper_with_supplementary.pdf">Preprint</a>
+    </h3>
+    <div align="center">
+        <a href="https://github.com/rvp-group/mad-icp"><img src="https://github.com/rvp-group/mad-icp/blob/main/mad-icp.gif?raw=true"/></a>   
+    </div>
+    <br />   
 </div>
 
-This version is mainly for reviewers. Soon, you can install this system via `pip`. Our <a href="paper_with_supplementary.pdf">preprint</a> is available for more details and results.
+# :gift: Install 
+You can download MAD-ICP using pip
+```bash
+pip install mad-icp
+```
 
+# :rocket: Usage
 
-## Building ##
+We provide a Python launcher for Rosbag1, Rosbag2, and KITTI binary formats. The dataset configuration file is important for the sensor characteristics and extrinsic information (typically, ground truths are not expressed in the LiDAR frame). 
 
-Building has been tested on Ubuntu 20.04 (with g++).
+The internal parameters are in `configurations/params.cfg`. All the experiments have been run with this same set.
+To run the pipeline, choose the appropriate dataset configuration file (`kitti.cfg`for this example) and type:
+```bash
+cd mad-icp/
+mad_icp --data-path /input_dir/ \
+        --estimate-path /output_dir/ \
+        --dataset-config mad-icp/configurations/datasets/kitti.cfg \
+        --mad-icp-config mad-icp/configurations/params.cfg
+```
+Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 scalars); soon, we will provide more available formats like TUM.
+
+Our pipeline is `anytime realtime`! You can play with parameters `num_keyframes` and `num_cores` and, if you have enough _computation capacity_, we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`).
+
+# :hammer: Building 
+
+Building is tested by our CI/CD pipeline for Ubuntu 20.04 and Ubuntu 22.04 (using g++).
 
 The following external dependencies are required.
-
 | Dependency   | Version(s) known to work |
 | ------------ | ------------------------ |
 | [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) | 3.3 |
 | [OpenMP](https://www.openmp.org/) |  |
 | [pybind11](https://pybind11.readthedocs.io/en/stable/) |  |
-| [yaml](https://github.com/jbeder/yaml-cpp) (optional C++ apps) |  |
+| [yaml](https://github.com/jbeder/yaml-cpp) (optional for C++ apps) |  |
 
-
-After obtaining all dependencies, the application can be built with CMake, for example, as follows:
-
+If your system lacks any dependency (except for `OpenMP`) we download local copies using `FetchContent`.
+If you want to build and install the package, assuming you're inside the repository, you can use `pip` as follows:
 ```bash
-cd mad-icp
-mkdir build && cd build && cmake .. && make -j
+pip install .
+```
+Moreover, you can build the C++ library (along with the pybinds) by typing:
+```bash
+mkdir build && cd build && cmake ../mad_icp && make -j8
 ```
 
-## Running
-
-A few other Python packages need to be installed for running. You can find the specific versions in the `requirements.txt`. We suggest to create a virtual env and run `pip3 install -r requirements.txt`.
-
-We provide a Python launcher for both rosbags and bin formats. The configuration file is important for the sensor characteristics and extrinsic information (usually, ground truths are not in the LiDAR frame). The internal parameters are in `configurations/params.cfg`; all the experiments have been run with this same set.
-
-How to run (make sure `estimate_path` and `data_path` point to a folder):
+## :godmode: Building and Running C++ Apps \[Optional\]
+If you want to avoid Python, we provide the `bin_runner` C++ executable (located in `mad_icp/apps/cpp_runners/bin_runner.cpp`) that accepts binary cloud format (KITTI, Mulran, etc.).
+You can build the executable using
 ```bash
-cd apps
-python3 mad-icp.py --data_path /path_to_bag_folder/ --estimate_path /path_to_estimate_folder/ --dataset_config ../configurations/datasets/dataset_config_file --mad_icp_config ../configurations/params.cfg 
+mkdir build && cd build && cmake -DCOMPILE_CPP_APPS=ON ../mad_icp && make -j
 ```
-
-Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 scalars); in the near future, we will provide more available formats like TUM. 
-Our pipeline is anytime realtime, therefore you can play with parameters `num_keyframes` and `num_cores`, if you have enough computation we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`), if not you can leave it in the proposed way.
-
-### (optional) Building and Running C++ Apps
-If you want to avoid Python, we provide a C++ executable that works just with binary cloud format (KITTI, Mulran, etc.), this file called `bin_runner` can be found in `build/apps/cpp_runners`.
-You can build this using
-```bash
-cd mad-icp
-mkdir build && cd build && cmake -DCOMPILE_CPP_APPS=ON .. && make -j
-```
-
 And run
 ```bash
 cd build/apps/cpp_runners
-./bin_runner -data_path /path_to_bag_folder/ -estimate_path /path_to_estimate_folder/ -dataset_config ../../../configurations/datasets/dataset_config_file -mad_icp_config ../../../configurations/params.cfg 
+./bin_runner -data_path /path_to_bag_folder/ \
+             -estimate_path /path_to_estimate_folder/ \
+             -dataset_config ../../../mad_icp/configurations/datasets/kitti.cfg \
+             -mad_icp_config ../../../mad_icp/configurations/params.cfg 
 ```
-If running on the KITTI dataset, make sure to enable the flag `-kitti` for KITTI scan correction (not documented anywhere). We do not (currently) provide a viewer for this executable. 
+>[!IMPORTANT]
+ >If running on the KITTI dataset, enable the flag `-kitti` for KITTI scan correction (not documented anywhere). We do not (currently) provide a viewer for this executable. 
 
-
-## What is missing?
-- `pip` package for easy install (coming soon)
+# :pencil: What is missing?
 - ROS/ROS2 optional dependencies
