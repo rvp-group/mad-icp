@@ -20,7 +20,7 @@ jobs:
           path: dist/*.tar.gz
 
   pypi:
-    if: github.event_name == 'release'
+    if: github.event_name == 'push'
     needs: build_sdist
     runs-on: ubuntu-latest
     steps:
