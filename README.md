@@ -31,7 +31,6 @@ Both the options `--dataset-config` and `--mad-icp-params` also accept `.cfg` fi
 
 To run the pipeline, choose the appropriate dataset configuration (`kitti` for this example) and type:
 ```bash
-cd mad-icp/
 mad_icp --data-path /input_dir/ \
         --estimate-path /output_dir/ \
         --dataset-config kitti
