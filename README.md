@@ -22,16 +22,19 @@ pip install mad-icp
 
 # Usage
 
-We provide a Python launcher for Rosbag1, Rosbag2, and KITTI binary formats. The dataset configuration file is important for the sensor characteristics and extrinsic information (typically, ground truths are not expressed in the LiDAR frame). 
+We provide a Python launcher for Rosbag1, Rosbag2, and KITTI binary formats. The dataset configuration is important for the sensor characteristics and extrinsic information (typically, ground truths are not expressed in the LiDAR frame). In `configurations/datasets/dataset_configurations.py` we provide configurations for many datasets.
 
-The internal parameters are in `configurations/params.cfg` (at the moment if you install this via `pip` you need to clone the repo). All the experiments have been run with this same set.
-To run the pipeline, choose the appropriate dataset configuration file (`kitti.cfg` for this example) and type:
+The internal parameters (used by default) are stored in `configurations/mad_params.py`. All the experiments have been run with this same set.
+You can specify a new set in `configurations/mad_params.py` and use it with the option `--mad-icp-params`.
+
+Both the options `--dataset-config` and `--mad-icp-params` also accept `.cfg` files like those in `configurations`.
+
+To run the pipeline, choose the appropriate dataset configuration (`kitti` for this example) and type:
 ```bash
 cd mad-icp/
 mad_icp --data-path /input_dir/ \
         --estimate-path /output_dir/ \
-        --dataset-config mad-icp/configurations/datasets/kitti.cfg \
-        --mad-icp-config mad-icp/configurations/params.cfg
+        --dataset-config kitti
 ```
 Our runner directly saves the odometry estimate file in KITTI format (homogenous matrix row-major 12 scalars); soon, we will provide more available formats like TUM.
 
