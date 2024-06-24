@@ -31,10 +31,11 @@ from typing import Tuple
 import natsort
 import pickle
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 class KittiReader:
     def __init__(self, data_dir: Path, min_range = 0, 
-                 max_range = 200, *args, **kwargs):
+                 max_range = 200, apply_correction = False, *args, **kwargs):
         """
         :param data_dir: Directory containing rosbags or path to a rosbag file
         :param topics: None for kitti
@@ -48,11 +49,13 @@ class KittiReader:
 
         self.min_range = min_range
         self.max_range = max_range
+        self.apply_correction = apply_correction
         self.time = 0.
         self.time_inc = 1./sensor_hz
         self.file_index = 0
         self.data_dir = data_dir
         self.cdtype = np.float32
+        self.vertical_angle_offset = np.radians(0.205)
         if (self.data_dir / ".dtype.pkl").exists():
             f = open(self.data_dir / ".dtype.pkl", "rb")
             self.cdtype = pickle.load(f)
@@ -66,18 +69,27 @@ class KittiReader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         return
 
+    # apply kitti magic correction (not documented)
+    def apply_rotation_correction(self, points: np.ndarray) -> np.ndarray:
+        rotation_vectors = np.cross(points, np.array([0., 0., 1.]))
+        norms = np.linalg.norm(rotation_vectors, axis=1).reshape(-1, 1)
+        rotation_vectors_normalized = rotation_vectors / norms
+        rotations = R.from_rotvec(self.vertical_angle_offset * rotation_vectors_normalized)
+        corrected_points = rotations.apply(points)
+        return corrected_points
+
     def __getitem__(self, item) -> Tuple[float, Tuple[np.ndarray, np.ndarray]]:
         cloud_np = np.fromfile(self.file_names[self.file_index], dtype=self.cdtype)
-        # with open(self.file_names[self.file_index], 'rb') as f:
-        #     buffer = f.read()
-        #     cloud_np = np.frombuffer(buffer, dtype=self.cdtype)
         cloud_np = cloud_np.reshape(-1, 4)[:, :3]
-        # if (point.norm() < min_range || point.norm() > max_range || std::isnan(point.x()) || std::isnan(point.y()) ||
-        #   std::isnan(point.z()))
+
         norms = np.linalg.norm(cloud_np, axis=1)
         mask = (norms >= self.min_range) & (norms <= self.max_range)
         # Use the mask to filter the points
         filtered_points = cloud_np[mask]
+
+        if self.apply_correction:
+            filtered_points = self.apply_rotation_correction(filtered_points)
+
         self.time += self.time_inc
         self.file_index += 1
         return self.time, filtered_points

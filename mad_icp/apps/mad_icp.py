@@ -41,6 +41,8 @@ from mad_icp.apps.utils.utils import write_transformed_pose
 from mad_icp.apps.utils.ros_reader import Ros1Reader
 from mad_icp.apps.utils.kitti_reader import KittiReader
 from mad_icp.apps.utils.visualizer import Visualizer
+from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
+from mad_icp.configurations.mad_params import MADConfiguration_lut
 # binded Odometry
 from mad_icp.src.pybind.pypeline import Pipeline, VectorEigen3d
 
@@ -50,7 +52,7 @@ console = Console()
 
 class InputDataInterface(str, Enum):
     kitti = "kitti",
-    ros1 = "ros1",
+    ros1 = "ros1"
     # Can insert additional conversion formats
 
 
@@ -65,9 +67,9 @@ def main(data_path: Annotated[
         estimate_path: Annotated[
         Path, typer.Option(help="trajectory estimate output path (folder path)", show_default=False)],
         dataset_config: Annotated[
-        Path, typer.Option(help="dataset configuration file", show_default=False)],
-        mad_icp_config: Annotated[
-        Path, typer.Option(help="parameters for mad icp", show_default=True)] = "../configurations/params.cfg",
+        Path, typer.Option(help="dataset configuration name or path to config file", show_default=False)],
+        mad_icp_params: Annotated[
+        Path, typer.Option(help="parameters for mad icp", show_default=True)] = "default",
         num_cores: Annotated[
         int, typer.Option(help="how many threads to use for icp (suggest maximum num)", show_default=True)] = 4,
         num_keyframes: Annotated[
@@ -85,11 +87,6 @@ def main(data_path: Annotated[
             f"[yellow] Output directory {estimate_path} does not exist. Creating new directory")
         estimate_path.mkdir(parents=True, exist_ok=True)
 
-    if not dataset_config.is_file():
-        console.print(
-            f"[red] Dataset config file {dataset_config} does not exist!")
-        sys.exit(-1)
-
     visualizer = None
     if not noviz:
         visualizer = Visualizer()
@@ -101,27 +98,48 @@ def main(data_path: Annotated[
     else:
         console.print("[yellow] The dataset is in kitti format")
 
-    console.print("[green] Parsing dataset configuration file")
-    data_config_file = open(dataset_config, 'r')
-    data_cf = yaml.safe_load(data_config_file)
+
+    console.print("[green] Parsing dataset configuration")
+    if dataset_config.is_file():
+        data_config_file = open(dataset_config, 'r')
+        data_cf = yaml.safe_load(data_config_file)
+    else:
+        dataset_config_str = str(dataset_config)
+        if dataset_config_str in DatasetConfiguration_lut:
+            data_cf = DatasetConfiguration_lut[dataset_config_str]
+        else:
+            console.print(f"[red] Error: Dataset '{dataset_config_str}' not found in the configuration lookup table. Possible configurations: {', '.join(DatasetConfiguration_lut.keys())}")
+            sys.exit(-1)
     min_range = data_cf["min_range"]
     max_range = data_cf["max_range"]
     sensor_hz = data_cf["sensor_hz"]
     deskew = data_cf["deskew"]
+    # apply_correction = data_cf["apply_correction"]
+    apply_correction = data_cf.get("apply_correction", False)
     topic = None
     if reader_type == InputDataInterface.ros1:
         topic = data_cf["rosbag_topic"]
     lidar_to_base = np.array(data_cf["lidar_to_base"])
 
-    console.print("[green] Parsing mad-icp configuration file")
-    mad_icp_config_file = open(mad_icp_config, 'r')
-    mad_icp_cf = yaml.safe_load(mad_icp_config_file)
+
+    console.print("[green] Parsing mad-icp parameters")
+    if mad_icp_params.is_file():
+        mad_icp_params_file = open(mad_icp_params, 'r')
+        mad_icp_cf = yaml.safe_load(mad_icp_params_file)
+    else:
+        mad_icp_params_str = str(mad_icp_params)
+        if mad_icp_params_str in MADConfiguration_lut:
+            mad_icp_cf = MADConfiguration_lut[mad_icp_params_str]
+        else:
+            console.print(f"[red] Error: mad-icp '{mad_icp_params_str}' not found in the configuration lookup table. Possible configurations: {', '.join(MADConfiguration_lut.keys())}")
+            sys.exit(-1)
     b_max = mad_icp_cf["b_max"]
     b_min = mad_icp_cf["b_min"]
     b_ratio = mad_icp_cf["b_ratio"]
     p_th = mad_icp_cf["p_th"]
     rho_ker = mad_icp_cf["rho_ker"]
     n = mad_icp_cf["n"]
+
 
     # check some params for machine
     if (realtime and num_keyframes > num_cores):
@@ -136,7 +154,7 @@ def main(data_path: Annotated[
     estimate_file_name = estimate_path / "estimate.txt"
     estimate_file = open(estimate_file_name, 'w')
 
-    with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz) as reader:
+    with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
         t_start = datetime.now()
         for ts, points in track(reader, description="processing..."):
 

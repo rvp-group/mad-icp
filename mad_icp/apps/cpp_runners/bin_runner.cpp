@@ -44,7 +44,7 @@
 std::string data_path;
 std::string estimate_path;
 std::string dataset_config;
-std::string mad_icp_config = "../../../configurations/params.cfg";
+std::string mad_icp_config = "../../../configurations/default.cfg";
 int num_cores              = 4;
 int num_keyframes          = 4;
 bool realtime              = false;
