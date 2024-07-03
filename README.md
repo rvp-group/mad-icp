@@ -60,7 +60,7 @@ pip install .
 ```
 Moreover, you can build the C++ library (along with the pybinds) by typing:
 ```bash
-mkdir build && cd build && cmake ../mad_icp && make -j8
+mkdir build && cd build && cmake ../mad_icp && make -j
 ```
 
 ## Building and Running C++ Apps \[Optional\]
