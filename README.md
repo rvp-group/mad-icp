@@ -5,6 +5,7 @@
     <a href="https://pypi.org/project/mad-icp/"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/mad-icp"></a>
     <h1>MAD-ICP</h1>
     <h3>It Is All About Matching Data -- Robust and Informed LiDAR Odometry</h3>
+    <h3>Accepted RA-L 2024</h3>
     <h3>
         <a href="https://github.com/rvp-group/mad-icp/blob/main/paper_with_supplementary.pdf">Preprint</a>
     </h3>
