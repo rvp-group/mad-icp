@@ -5,7 +5,7 @@
     <a href="https://pypi.org/project/mad-icp/"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/mad-icp"></a>
     <h1>MAD-ICP</h1>
     <h3>It Is All About Matching Data -- Robust and Informed LiDAR Odometry</h3>
-    <h3>Accepted RA-L 2024</h3>
+    <h3>Accepted <a href="https://ieeexplore.ieee.org/document/10669999">RA-L</a> 2024</h3>
     <h3>
         <a href="https://github.com/rvp-group/mad-icp/blob/main/paper_with_supplementary.pdf">Preprint</a>
     </h3>
@@ -85,13 +85,14 @@ cd build/apps/cpp_runners
 - ROS/ROS2 optional dependencies
 
 # Cite us
-Our work is currently under review; in the meantime, if you use any of this code, here is the preprint information:
+If you use any of this code, please cite our <a href="https://ieeexplore.ieee.org/document/10669999">paper</a>:
 
 ```
 @article{ferrari2024mad,
   title={MAD-ICP: It Is All About Matching Data--Robust and Informed LiDAR Odometry},
   author={Ferrari, Simone and Di Giammarino, Luca and Brizi, Leonardo and Grisetti, Giorgio},
-  journal={arXiv preprint arXiv:2405.05828},
-  year={2024}
+  journal={IEEE Robotics and Automation Letters},
+  year={2024},
+  doi={10.1109/LRA.2024.3456509}
 }
 ```
