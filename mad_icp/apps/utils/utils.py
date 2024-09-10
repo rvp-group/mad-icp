@@ -31,7 +31,4 @@ import numpy as np
 def write_transformed_pose(estimate_file, lidar_to_world, lidar_to_base):
 	base_to_lidar = np.linalg.inv(lidar_to_base)
 	base_to_world = np.dot(lidar_to_base, np.dot(lidar_to_world, base_to_lidar))
-	for row in range(3):
-		for col in range(4):
-			estimate_file.write(str(base_to_world[row, col]) + " ")
-	estimate_file.write("\n")
+	estimate_file.write(str(base_to_world[:3].reshape(12,))[1:-1] + "\n")
