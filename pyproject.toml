@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "mad-icp"
-version = "0.0.3"
+version = "0.0.4"
 description = "It Is All About Matching Data -- Robust and Informed LiDAR Odometry"
 readme = "README.md"
 authors = [
