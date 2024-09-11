@@ -94,8 +94,7 @@ def main(data_path: Annotated[
         visualizer = Visualizer()
 
     reader_type = InputDataInterface.kitti
-    print(data_path)
-    print(list(data_path.glob("*.db3")))
+    
     if len(list(data_path.glob("*.bag"))) != 0:
         console.print("[yellow] The dataset is in ros bag format")
         reader_type = InputDataInterface.ros1

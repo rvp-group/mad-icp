@@ -99,4 +99,5 @@ protected:
   size_t seq_keyframe_;
   bool is_initialized_;
   bool is_map_updated_;
+  float loop_time;
 };

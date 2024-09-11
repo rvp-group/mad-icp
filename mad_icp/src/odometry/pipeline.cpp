@@ -59,6 +59,7 @@ Pipeline::Pipeline(double sensor_hz,
   seq_keyframe_   = 0;
   is_initialized_ = false;
   is_map_updated_ = false;
+  loop_time = (1. / sensor_hz_) * 1000;
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads));
   omp_set_num_threads(num_threads);
@@ -163,7 +164,7 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   struct timeval icp_start, icp_end, icp_delta;
 
   for (size_t icp_iteration = 0; icp_iteration < MAX_ICP_ITS; ++icp_iteration) {
-    const float remaining_time = 90.0 - (preprocessing_time + total_icp_time + icp_time);
+    const float remaining_time = loop_time - 5.0 - (preprocessing_time + total_icp_time + icp_time);
     if (realtime_ && remaining_time < 0)
       break;
 
