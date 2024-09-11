@@ -152,7 +152,8 @@ def main(data_path: Annotated[
                         p_th, b_min, b_ratio, num_keyframes, num_cores, realtime)
 
     estimate_file_name = estimate_path / "estimate.txt"
-    estimate_file = open(estimate_file_name, 'w')
+    estimate_file = open(estimate_file_name, 'a')
+    estimate_file.truncate(0)
 
     with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
         t_start = datetime.now()
