@@ -40,6 +40,7 @@ from datetime import datetime
 from mad_icp.apps.utils.utils import write_transformed_pose
 from mad_icp.apps.utils.ros_reader import Ros1Reader
 from mad_icp.apps.utils.ros2_reader import Ros2Reader
+from mad_icp.apps.utils.mcap_reader import McapReader
 from mad_icp.apps.utils.kitti_reader import KittiReader
 from mad_icp.apps.utils.visualizer import Visualizer
 from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
@@ -53,15 +54,17 @@ console = Console()
 
 class InputDataInterface(str, Enum):
     kitti = "kitti",
-    ros1 = "ros1"
-    ros2 = "ros2"
+    ros1  = "ros1",
+    ros2  = "ros2",
+    mcap  = "mcap"
     # Can insert additional conversion formats
 
 
 InputDataInterface_lut = {
     InputDataInterface.kitti: KittiReader,
     InputDataInterface.ros1: Ros1Reader,
-    InputDataInterface.ros2: Ros2Reader
+    InputDataInterface.ros2: Ros2Reader,
+    InputDataInterface.mcap: McapReader
 }
 
 
@@ -99,8 +102,11 @@ def main(data_path: Annotated[
         console.print("[yellow] The dataset is in ros bag format")
         reader_type = InputDataInterface.ros1
     elif len(list(data_path.glob("*.db3"))) != 0:
-        console.print("[yellow] The dataset is in ros2 bag format")
+        console.print("[yellow] The dataset is in ros2 db3 format")
         reader_type = InputDataInterface.ros2
+    elif os.path.isfile(data_path) and data_path.suffix == ".mcap":
+        console.print("[yellow] The dataset is in ros2 mcap format")
+        reader_type = InputDataInterface.mcap
     else:
         console.print("[yellow] The dataset is in kitti format")
 
@@ -123,7 +129,7 @@ def main(data_path: Annotated[
     # apply_correction = data_cf["apply_correction"]
     apply_correction = data_cf.get("apply_correction", False)
     topic = None
-    if reader_type in [InputDataInterface.ros1, InputDataInterface.ros2]:
+    if reader_type in [InputDataInterface.ros1, InputDataInterface.ros2, InputDataInterface.mcap]:
         topic = data_cf["rosbag_topic"]
     lidar_to_base = np.array(data_cf["lidar_to_base"])
 

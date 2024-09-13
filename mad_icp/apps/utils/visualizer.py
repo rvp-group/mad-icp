@@ -50,7 +50,7 @@ class Visualizer():
 		self._initialize_visualizer()
 
 	def _initialize_visualizer(self):
-		self.vis.create_window()
+		self.vis.create_window(window_name="MAD-ICP", width=1280, height=720, visible=True)
 		self.vis.add_geometry(self.current)
 		self.vis.add_geometry(self.local_map)
 		self.vis.get_render_option().background_color = BLACK
