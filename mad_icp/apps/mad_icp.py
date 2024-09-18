@@ -104,7 +104,7 @@ def main(data_path: Annotated[
     elif len(list(data_path.glob("*.db3"))) != 0:
         console.print("[yellow] The dataset is in ros2 db3 format")
         reader_type = InputDataInterface.ros2
-    elif os.path.isfile(data_path) and data_path.suffix == ".mcap":
+    elif len(list(data_path.glob("*.mcap"))) != 0:
         console.print("[yellow] The dataset is in ros2 mcap format")
         reader_type = InputDataInterface.mcap
     else:

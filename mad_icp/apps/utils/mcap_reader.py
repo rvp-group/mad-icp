@@ -63,8 +63,9 @@ class McapReader:
         self.min_range = min_range
         self.max_range = max_range
 
-        assert os.path.isfile(data_dir), "mcap dataloader expects an existing MCAP file"
-        mcap_file = str(data_dir)
+        mcap_file_path = next(data_dir.glob("*.mcap"), None)
+        assert os.path.isfile(mcap_file_path), "mcap dataloader expects an existing MCAP file"
+        mcap_file = str(mcap_file_path)
 
         self.bag = make_reader(open(mcap_file, "rb"))
         self.summary = self.bag.get_summary()
