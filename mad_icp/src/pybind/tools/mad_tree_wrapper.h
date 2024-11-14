@@ -26,35 +26,35 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// pybind11
-#include <pybind11/pybind11.h>
+#pragma once
 
-#include "odometry/pipeline.h"
+#include "../eigen_stl_bindings.h"
+#include <tools/mad_tree.h>
 
-namespace py11 = pybind11;
-using namespace py11::literals;
+class MADtreeWrapper {
+public:
+  void build(ContainerType vec, const double b_max, const double b_min, const int max_parallel_level) {
+    ContainerType* vec_add = &vec;
+    mad_tree_.reset(
+      new MADtree(vec_add, vec_add->begin(), vec_add->end(), b_max, b_min, 0, max_parallel_level, nullptr, nullptr));
+  }
 
-PYBIND11_MODULE(pypeline, m) {
-  auto pipeline = py11::class_<Pipeline>(m, "Pipeline")
-                    .def(py11::init<double, bool, double, double, double, double, double, int, int, bool>(),
-                         py11::arg("sensor_hz"),
-                         py11::arg("deskew"),
-                         py11::arg("b_max"),
-                         py11::arg("rho_ker"),
-                         py11::arg("p_th"),
-                         py11::arg("b_min"),
-                         py11::arg("b_ratio"),
-                         py11::arg("num_keyframes"),
-                         py11::arg("num_threads"),
-                         py11::arg("realtime"))
-                    .def("currentPose", &Pipeline::currentPose)
-                    .def("trajectory", &Pipeline::trajectory)
-                    .def("keyframePose", &Pipeline::keyframePose)
-                    .def("isInitialized", &Pipeline::isInitialized)
-                    .def("isMapUpdated", &Pipeline::isMapUpdated)
-                    .def("currentID", &Pipeline::currentID)
-                    .def("keyframeID", &Pipeline::keyframeID)
-                    .def("modelLeaves", &Pipeline::modelLeaves)
-                    .def("currentLeaves", &Pipeline::currentLeaves)
-                    .def("compute", &Pipeline::compute);
-}
+  std::pair<Eigen::Vector3d, Eigen::Vector3d> search(const Eigen::Vector3d& query) {
+    const MADtree* match_leaf = mad_tree_->bestMatchingLeafFast(query);
+    // this is the median point and normal calculated with PCA
+    return std::make_pair(match_leaf->mean_, match_leaf->eigenvectors_.col(0));
+  }
+
+  std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> searchCloud(const ContainerType& query_cloud) {
+    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> matches(query_cloud.size());
+    int idx = 0;
+    for (const auto& query : query_cloud) {
+      const MADtree* match_leaf = mad_tree_->bestMatchingLeafFast(query);
+      matches[idx++]            = std::make_pair(match_leaf->mean_, match_leaf->eigenvectors_.col(0));
+    }
+    return matches;
+  }
+
+protected:
+  std::unique_ptr<MADtree> mad_tree_ = nullptr;
+};

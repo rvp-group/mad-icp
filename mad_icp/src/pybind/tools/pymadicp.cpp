@@ -26,35 +26,27 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// pybind11
+#include "mad_icp_wrapper.h"
+#include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
+#include <tools/constants.h>
 
-#include "odometry/pipeline.h"
+namespace py = pybind11;
 
-namespace py11 = pybind11;
-using namespace py11::literals;
-
-PYBIND11_MODULE(pypeline, m) {
-  auto pipeline = py11::class_<Pipeline>(m, "Pipeline")
-                    .def(py11::init<double, bool, double, double, double, double, double, int, int, bool>(),
-                         py11::arg("sensor_hz"),
-                         py11::arg("deskew"),
-                         py11::arg("b_max"),
-                         py11::arg("rho_ker"),
-                         py11::arg("p_th"),
-                         py11::arg("b_min"),
-                         py11::arg("b_ratio"),
-                         py11::arg("num_keyframes"),
-                         py11::arg("num_threads"),
-                         py11::arg("realtime"))
-                    .def("currentPose", &Pipeline::currentPose)
-                    .def("trajectory", &Pipeline::trajectory)
-                    .def("keyframePose", &Pipeline::keyframePose)
-                    .def("isInitialized", &Pipeline::isInitialized)
-                    .def("isMapUpdated", &Pipeline::isMapUpdated)
-                    .def("currentID", &Pipeline::currentID)
-                    .def("keyframeID", &Pipeline::keyframeID)
-                    .def("modelLeaves", &Pipeline::modelLeaves)
-                    .def("currentLeaves", &Pipeline::currentLeaves)
-                    .def("compute", &Pipeline::compute);
+PYBIND11_MODULE(pymadicp, m) {
+  py::class_<MADicpWrapper>(m, "MADicp")
+    .def(py::init<int>(), py::arg("num_threads"))
+    .def("setQueryCloud", &MADicpWrapper::setQueryCloud, py::arg("query"), py::arg("b_max") = 0.2, py::arg("b_min") = 0.1)
+    .def("setReferenceCloud",
+         &MADicpWrapper::setReferenceCloud,
+         py::arg("reference"),
+         py::arg("b_max") = 0.2,
+         py::arg("b_min") = 0.1)
+    .def("compute",
+         &MADicpWrapper::compute,
+         py::arg("T"),
+         py::arg("icp_iterations") = MAX_ICP_ITS,
+         py::arg("rho_ker")        = 0.1,
+         py::arg("b_ratio")        = 0.02,
+         py::arg("print_stats")    = false);
 }

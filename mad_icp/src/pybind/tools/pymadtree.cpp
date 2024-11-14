@@ -26,35 +26,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// pybind11
+#include "mad_tree_wrapper.h"
+#include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
-
-#include "odometry/pipeline.h"
 
 namespace py11 = pybind11;
 using namespace py11::literals;
 
-PYBIND11_MODULE(pypeline, m) {
-  auto pipeline = py11::class_<Pipeline>(m, "Pipeline")
-                    .def(py11::init<double, bool, double, double, double, double, double, int, int, bool>(),
-                         py11::arg("sensor_hz"),
-                         py11::arg("deskew"),
-                         py11::arg("b_max"),
-                         py11::arg("rho_ker"),
-                         py11::arg("p_th"),
-                         py11::arg("b_min"),
-                         py11::arg("b_ratio"),
-                         py11::arg("num_keyframes"),
-                         py11::arg("num_threads"),
-                         py11::arg("realtime"))
-                    .def("currentPose", &Pipeline::currentPose)
-                    .def("trajectory", &Pipeline::trajectory)
-                    .def("keyframePose", &Pipeline::keyframePose)
-                    .def("isInitialized", &Pipeline::isInitialized)
-                    .def("isMapUpdated", &Pipeline::isMapUpdated)
-                    .def("currentID", &Pipeline::currentID)
-                    .def("keyframeID", &Pipeline::keyframeID)
-                    .def("modelLeaves", &Pipeline::modelLeaves)
-                    .def("currentLeaves", &Pipeline::currentLeaves)
-                    .def("compute", &Pipeline::compute);
+PYBIND11_MODULE(pymadtree, m) {
+  auto madtree = py11::class_<MADtreeWrapper>(m, "MADtree")
+                   .def(py11::init<>())
+                   .def("build",
+                        &MADtreeWrapper::build,
+                        py11::arg("vec"),
+                        py11::arg("b_max")              = 1e-5,
+                        py11::arg("b_min")              = 0.1,
+                        py11::arg("max_parallel_level") = 2)
+                   .def("search", &MADtreeWrapper::search, py11::arg("query"))
+                   .def("searchCloud", &MADtreeWrapper::searchCloud, py11::arg("query_cloud"));
 }

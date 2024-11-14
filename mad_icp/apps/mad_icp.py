@@ -45,8 +45,9 @@ from mad_icp.apps.utils.kitti_reader import KittiReader
 from mad_icp.apps.utils.visualizer import Visualizer
 from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
 from mad_icp.configurations.mad_params import MADConfiguration_lut
-# binded Odometry
-from mad_icp.src.pybind.pypeline import Pipeline, VectorEigen3d
+# binded vectors and odometry
+from mad_icp.src.pybind.pyvector import VectorEigen3d
+from mad_icp.src.pybind.pypeline import Pipeline
 
 
 console = Console()
