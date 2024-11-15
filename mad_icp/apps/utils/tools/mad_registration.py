@@ -79,7 +79,7 @@ def main(viz: Annotated[bool, typer.Option(help="if true visualizer on", show_de
     query_pcd.paint_uniform_color([1, 0, 0])  # red
 
     vis = o3d.visualization.Visualizer()
-    vis.create_window()
+    vis.create_window(window_name="MAD-registration", width=1280, height=720, visible=True)
     vis.add_geometry(ref_pcd)
     vis.add_geometry(query_pcd)
 

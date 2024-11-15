@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "PyYAML",
-    "numpy",
+    "numpy==1.26.4",
     "rosbags",
     "open3d",
     "matplotlib",

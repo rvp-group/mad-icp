@@ -40,6 +40,10 @@ Our runner directly saves the odometry estimate file in KITTI format (homogenous
 
 Our pipeline is `anytime realtime`! You can play with parameters `num_keyframes` and `num_cores` and, if you have enough _computation capacity_, we suggest increasing these (we run demo/experiments with `num_keyframes=16` and `num_cores=16`).
 
+## Data associtation and registration tools
+If you want to use our MAD-tree to perform nearest neighbor or use MAD-ICP to perform registration between two point clouds, <b>[here few easy examples](https://github.com/rvp-group/mad-icp/tree/main/mad_icp/apps/utils/tools/README.md)</b>.
+
+
 ____________________________________________________________________
 
 # Building from source
