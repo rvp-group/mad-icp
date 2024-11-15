@@ -3,12 +3,6 @@
     <br />   
 </div>
 
-# Install using `pip`
-You can download/install MAD-ICP using `pip`
-```bash
-pip install mad-icp
-```
-
 # Usage
 `nn_search.py` allows computing the data association between either:
 - a query point and a reference cloud;
