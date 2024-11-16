@@ -30,6 +30,7 @@
 #include <pybind11/pybind11.h>
 
 #include "odometry/pipeline.h"
+#include "eigen_stl_bindings.h"
 
 namespace py11 = pybind11;
 using namespace py11::literals;

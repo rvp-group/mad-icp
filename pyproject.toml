@@ -24,14 +24,14 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "PyYAML",
-    "numpy==1.26.4",
-    "rosbags",
-    "open3d",
-    "matplotlib",
-    "typer>=0.10.0",
-    "natsort",
-    "rich",
+    "PyYAML==6.0.1",
+    "numpy==1.23.5",
+    "rosbags==0.9.23",
+    "open3d==0.13.0",
+    "matplotlib==3.1.2",
+    "typer==0.12.3",
+    "natsort==8.4.0",
+    "rich==13.7.1",
 ]
 
 [project.scripts]
