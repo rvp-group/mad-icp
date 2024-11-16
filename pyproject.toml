@@ -27,7 +27,7 @@ dependencies = [
     "PyYAML==6.0.1",
     "numpy==1.23.5",
     "rosbags==0.9.23",
-    "open3d==0.13.0",
+    "open3d",
     "matplotlib==3.1.2",
     "typer==0.12.3",
     "natsort==8.4.0",
