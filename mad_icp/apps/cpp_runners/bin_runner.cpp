@@ -255,7 +255,13 @@ void writeTransformedPose(std::ofstream& estimate_file_buf,
   const Eigen::Matrix4d base_to_world = lidar_to_base * lidar_to_world * lidar_to_base.inverse();
   for (int row = 0; row < 3; ++row) {
     for (int col = 0; col < 4; ++col) {
-      estimate_file_buf << base_to_world(row, col) << " ";
+      estimate_file_buf << base_to_world(row, col);
+      if (col < 3) {
+        estimate_file_buf << " ";
+      }
+    }
+    if (row < 2) {
+      estimate_file_buf << " ";
     }
   }
   estimate_file_buf << std::endl;
