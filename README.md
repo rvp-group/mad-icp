@@ -80,7 +80,7 @@ cd build/apps/cpp_runners
 ./bin_runner -data_path /path_to_bag_folder/ \
              -estimate_path /path_to_estimate_folder/ \
              -dataset_config ../../../mad_icp/configurations/datasets/kitti.cfg \
-             -mad_icp_config ../../../mad_icp/configurations/params.cfg 
+             -mad_icp_config ../../../mad_icp/configurations/default.cfg 
 ```
 >[!IMPORTANT]
  >If running on the KITTI dataset, enable the flag `-kitti` for KITTI scan correction (not documented anywhere). We do not (currently) provide a viewer for this executable. 
