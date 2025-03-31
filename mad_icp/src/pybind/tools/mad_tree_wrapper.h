@@ -55,6 +55,17 @@ public:
     return matches;
   }
 
+  std::vector<std::tuple<Eigen::Vector3d, Eigen::Vector3d, double>> searchCloudDist(const ContainerType& query_cloud) {
+    std::vector<std::tuple<Eigen::Vector3d, Eigen::Vector3d, double>> matches(query_cloud.size());
+    int idx = 0;
+    for (const auto& query : query_cloud) {
+      const MADtree* match_leaf = mad_tree_->bestMatchingLeafFast(query);
+      const double dist         = (query - match_leaf->mean_).norm();
+      matches[idx++]            = std::make_tuple(match_leaf->mean_, match_leaf->eigenvectors_.col(0), dist);
+    }
+    return matches;
+  }
+
 protected:
   std::unique_ptr<MADtree> mad_tree_ = nullptr;
 };

@@ -43,5 +43,6 @@ PYBIND11_MODULE(pymadtree, m) {
                         py11::arg("b_min")              = 0.1,
                         py11::arg("max_parallel_level") = 2)
                    .def("search", &MADtreeWrapper::search, py11::arg("query"))
-                   .def("searchCloud", &MADtreeWrapper::searchCloud, py11::arg("query_cloud"));
+                   .def("searchCloud", &MADtreeWrapper::searchCloud, py11::arg("query_cloud"))
+                   .def("searchCloudDist", &MADtreeWrapper::searchCloudDist, py11::arg("query_cloud"));
 }
