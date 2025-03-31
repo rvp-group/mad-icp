@@ -5,7 +5,7 @@ project(mad_icp LANGUAGES CXX)
 
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS -Werror)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 
 # this is required only to compile apps in C++, if you work in Python this can be set to off
 # if need to compile C++ apps, when executing CMake run `cmake -DCOMPILE_CPP_APPS=ON ..`
