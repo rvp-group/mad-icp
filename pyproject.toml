@@ -1,10 +1,10 @@
 [build-system]
-requires = ["scikit-build-core", "pybind11"]
+requires = ["setuptools>=68.2", "scikit-build-core", "pybind11"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "mad-icp"
-version = "0.0.9"
+version = "0.0.10"
 description = "It Is All About Matching Data -- Robust and Informed LiDAR Odometry"
 readme = "README.md"
 authors = [
@@ -25,10 +25,10 @@ classifiers = [
 ]
 dependencies = [
     "PyYAML==6.0.1",
-    "numpy==1.23.5",
+    "numpy>=1.26.0",
     "rosbags==0.9.23",
     "open3d",
-    "matplotlib==3.1.2",
+    "matplotlib>=3.8",
     "typer==0.12.3",
     "natsort==8.4.0",
     "rich==13.7.1",
