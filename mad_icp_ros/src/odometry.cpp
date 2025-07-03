@@ -66,8 +66,9 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
   // Instance the tf2 broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-  // Instance the PointCloud2 subscriber
+  // Subscribers initialization
 
+  // pointclouds:
   // set the qos to match the ouster
   auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
                  .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
@@ -75,43 +76,18 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
   pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "points", qos,
       std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
+
+  odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "odom_init", qos,
+      std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
 }
 
-void mad_icp_ros::Odometry::pointcloud_callback(
-    const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-  // auto new_stamp = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
-  // if stamp_ > new_stamp {
+void mad_icp_ros::Odometry::odom_callback(
+    const nav_msgs::msg::Odometry::SharedPtr msg) {
+  auto ts = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+  RCLCPP_INFO(get_logger(), "Got odom message %f", ts);
 
-  // }
-
-  stamp_ = msg->header.stamp;
-
-  // mad icp uses unordered clouds
-  auto height = msg->height;
-  auto width = msg->width;
-
-  // Convert the PointCloud2 message to mad_icp's ContainerType (std::vector
-  // of 3d points)
-  sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_int(*msg, "intensity");
-
-  pc_container_.clear();  // is this necessary?
-  pc_container_.reserve(msg->height * msg->width);
-
-  for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_int) {
-    auto point = Eigen::Vector3d{*iter_x, *iter_y, *iter_z};
-    if (std::isnan(point.x()) || std::isnan(point.y()) ||
-        std::isnan(point.z()) || *iter_int < intensity_thr_ ||
-        point.norm() < min_range_ || point.norm() > max_range_)
-      continue;
-    pc_container_.emplace_back(point);
-  }
-
-  pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
-                     pc_container_);
-  publish_odom_tf();
+  return;
 }
 
 Eigen::Matrix4d parseMatrix(const std::vector<std::vector<double>>& vec) {
@@ -168,6 +144,43 @@ void mad_icp_ros::Odometry::publish_odom_tf() const {
 
   tf_broadcaster_->sendTransform(transform);
   return;
+}
+
+void mad_icp_ros::Odometry::pointcloud_callback(
+    const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+  // auto new_stamp = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+  // if stamp_ > new_stamp {
+
+  // }
+
+  stamp_ = msg->header.stamp;
+
+  // mad icp uses unordered clouds
+  auto height = msg->height;
+  auto width = msg->width;
+
+  // Convert the PointCloud2 message to mad_icp's ContainerType (std::vector
+  // of 3d points)
+  sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_int(*msg, "intensity");
+
+  pc_container_.clear();  // is this necessary?
+  pc_container_.reserve(msg->height * msg->width);
+
+  for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_int) {
+    auto point = Eigen::Vector3d{*iter_x, *iter_y, *iter_z};
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z()) || *iter_int < intensity_thr_ ||
+        point.norm() < min_range_ || point.norm() > max_range_)
+      continue;
+    pc_container_.emplace_back(point);
+  }
+
+  pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
+                     pc_container_);
+  publish_odom_tf();
 }
 
 void mad_icp_ros::Odometry::reset() {

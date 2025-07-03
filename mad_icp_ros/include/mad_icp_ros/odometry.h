@@ -24,9 +24,13 @@ class Odometry : public rclcpp::Node {
 
   std::unique_ptr<Pipeline> pipeline_;
 
+  // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_sub_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  //
 
   void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
 
   // store each message here
   ContainerType pc_container_;
