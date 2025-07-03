@@ -1,0 +1,10 @@
+<package format="3">
+  <name>mad_icp</name>
+  <version>0.0.1</version>
+  <description>"mad_icp"</description>
+  <maintainer email="you@example.com">You</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>sensor_msgs</depend>
+</package>

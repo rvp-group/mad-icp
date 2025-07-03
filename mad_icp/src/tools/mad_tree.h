@@ -36,6 +36,8 @@
 #include <list>
 #include <memory>
 
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 class MADtree;
 
 // some using
@@ -98,5 +100,5 @@ struct MADtree {
   Eigen::Matrix3d eigenvectors_;
 
 protected:
-  MADtree(){};
+  MADtree() {};
 };

@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project(mad_icp LANGUAGES CXX)
 
+find_package(ament_cmake REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -93,3 +97,5 @@ install(FILES "mad_icpConfig.cmake" DESTINATION lib/cmake/mad_icp)
 
 # TODO only if one wants to build cpp runners
 add_subdirectory(apps/cpp_runners)
+
+ament_package()
