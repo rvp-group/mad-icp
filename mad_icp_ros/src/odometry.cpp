@@ -19,16 +19,16 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
     : Node("mad_icp", options) {
   // Load parameters file
   std::string package_share_dir =
-      ament_index_cpp::get_package_share_directory("mad_icp_ros");
+      ament_index_cpp::get_package_share_directory("mad_icp");
 
   this->declare_parameter<std::string>(
       "dataset_config_file",
-      package_share_dir + "/config/datasets/vbr_os0.cfg");
+      package_share_dir + "/configurations/datasets/vbr_os0.cfg");
 
   this->get_parameter("dataset_config_file", dataset_config_file_path_);
 
   this->declare_parameter<std::string>(
-      "mad_icp_config_file", package_share_dir + "/config/default.cfg");
+      "mad_icp_config_file", package_share_dir + "/configurations/default.cfg");
 
   this->get_parameter("mad_icp_config_file", mad_icp_config_file_path_);
 
@@ -86,6 +86,8 @@ void mad_icp_ros::Odometry::odom_callback(
     const nav_msgs::msg::Odometry::SharedPtr msg) {
   auto ts = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
   RCLCPP_INFO(get_logger(), "Got odom message %f", ts);
+
+  auto stamp = msg->header.stamp;
 
   return;
 }

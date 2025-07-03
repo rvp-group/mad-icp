@@ -98,4 +98,10 @@ install(FILES "mad_icpConfig.cmake" DESTINATION lib/cmake/mad_icp)
 # TODO only if one wants to build cpp runners
 add_subdirectory(apps/cpp_runners)
 
+install(
+  DIRECTORY configurations
+  DESTINATION share/${PROJECT_NAME}
+)
+
+
 ament_package()

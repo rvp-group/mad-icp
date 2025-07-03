@@ -66,9 +66,5 @@ install(
   RUNTIME DESTINATION bin
 )
 
-install(
-  DIRECTORY config
-  DESTINATION share/${PROJECT_NAME}
-)
 
 ament_package()
