@@ -69,5 +69,27 @@ include_directories(
 
 add_subdirectory(src)
 
+
+install(
+  DIRECTORY src/
+  DESTINATION include/
+  FILES_MATCHING PATTERN "*.h"
+)
+
+install(TARGETS tools odometry
+        EXPORT mad_icpTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+)
+
+install(EXPORT mad_icpTargets
+        FILE mad_icpTargets.cmake
+        DESTINATION lib/cmake/mad_icp)
+install(FILES "mad_icpConfig.cmake" DESTINATION lib/cmake/mad_icp)
+
+
+
 # TODO only if one wants to build cpp runners
 add_subdirectory(apps/cpp_runners)
