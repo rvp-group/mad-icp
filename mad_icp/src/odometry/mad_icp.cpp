@@ -28,23 +28,27 @@
 
 #include "mad_icp.h"
 
-MADicp::MADicp(double min_ball, double rho_ker, double b_ratio, int num_threads)
-  : min_ball_(min_ball), rho_ker_(sqrt(rho_ker)), b_ratio_(b_ratio), num_threads_(num_threads) {
+MADicp::MADicp(double min_ball, double rho_ker, double b_ratio, int num_threads) :
+  min_ball_(min_ball), rho_ker_(sqrt(rho_ker)), b_ratio_(b_ratio), num_threads_(num_threads) {
   X_.setIdentity();
   H_adder_.setZero();
   b_adder_.setZero();
+  chi_adder_ = 0;
 
-  H_adders_ = std::vector<Matrix6d>(num_threads);
-  b_adders_ = std::vector<Vector6d>(num_threads);
+  H_adders_   = std::vector<Matrix6d>(num_threads);
+  b_adders_   = std::vector<Vector6d>(num_threads);
+  chi_adders_ = std::vector<double>(num_threads);
 }
 
 void MADicp::resetAdders() {
   H_adder_.setZero();
   b_adder_.setZero();
+  chi_adder_ = 0;
 
   for (size_t i = 0; i < num_threads_; ++i) {
     H_adders_[i].setZero();
     b_adders_[i].setZero();
+    chi_adders_[i] = 0;
   }
 }
 
@@ -89,8 +93,9 @@ void MADicp::update(const MADtree* fixed_tree) {
 
     errorAndJacobian(e, J, *f, *moving, ml);
 
-    double scale = 1.;
+    double scale     = 1.;
     const double chi = abs(e);
+
     if (chi > rho_ker_) {
       scale = rho_ker_ / chi;
     }
@@ -99,6 +104,7 @@ void MADicp::update(const MADtree* fixed_tree) {
 
     H_adders_[thread_id] += scale * J.transpose() * J;
     b_adders_[thread_id] += scale * J.transpose() * e;
+    chi_adders_[thread_id] = chi;
   }
 }
 
@@ -106,6 +112,7 @@ void MADicp::updateState() {
   for (size_t i = 0; i < num_threads_; ++i) {
     H_adder_ += H_adders_[i];
     b_adder_ += b_adders_[i];
+    chi_adder_ += chi_adders_[i];
   }
 
   Vector6d dx          = H_adder_.ldlt().solve(-b_adder_);
