@@ -15,8 +15,19 @@ int num_keyframes = 4;
 bool realtime = false;
 bool kitti = false;
 
+double time_to_double(const builtin_interfaces::msg::Time& t) {
+  return t.sec + t.nanosec * 1e-9;
+}
+
 mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
     : Node("mad_icp", options) {
+  // ROS2 Parameters
+
+  this->declare_parameter<bool>("use_odom", true);
+  this->get_parameter("use_odom", use_odom_);
+
+  // TODO eventually move the config files into launch files
+
   // Load parameters file
   std::string package_share_dir =
       ament_index_cpp::get_package_share_directory("mad_icp");
@@ -45,9 +56,9 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
   sensor_hz_ = yaml_dataset_config["sensor_hz"].as<double>();
   deskew_ = yaml_dataset_config["deskew"].as<bool>();
   // parsing lidar in base homogenous transformation
-  const auto lidar_to_base_vec = yaml_dataset_config["lidar_to_base"]
+  const auto lidar_in_base_vec = yaml_dataset_config["lidar_to_base"]
                                      .as<std::vector<std::vector<double>>>();
-  lidar_to_base_ = parseMatrix(lidar_to_base_vec);
+  lidar_in_base_ = parseMatrix(lidar_in_base_vec);
 
   // parse mad-icp configuration
   b_max_ = yaml_mad_icp_config["b_max"].as<double>();
@@ -77,19 +88,11 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
       "points", qos,
       std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
 
-  odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-      "odom_init", qos,
-      std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
-}
-
-void mad_icp_ros::Odometry::odom_callback(
-    const nav_msgs::msg::Odometry::SharedPtr msg) {
-  auto ts = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
-  RCLCPP_INFO(get_logger(), "Got odom message %f", ts);
-
-  auto stamp = msg->header.stamp;
-
-  return;
+  if (use_odom_) {
+    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+        "odom_init", qos,
+        std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
+  }
 }
 
 Eigen::Matrix4d parseMatrix(const std::vector<std::vector<double>>& vec) {
@@ -104,7 +107,8 @@ Eigen::Matrix4d parseMatrix(const std::vector<std::vector<double>>& vec) {
 }
 
 void mad_icp_ros::Odometry::publish_odom_tf() const {
-  auto pose = pipeline_->currentPose();
+  auto pose =
+      lidar_in_base_ * pipeline_->currentPose() * lidar_in_base_.inverse();
   // auto vel = pipeline_->currentVel(); // extract also velocity?
   double x = pose(0, 3);
   double y = pose(1, 3);
@@ -126,14 +130,14 @@ void mad_icp_ros::Odometry::publish_odom_tf() const {
   odom.pose.pose.orientation.z = q.z();
   odom.pose.pose.orientation.w = q.w();
 
-  odom.child_frame_id = frame_id_;
+  odom.child_frame_id = base_frame_id_;
 
   odom_pub_->publish(odom);
 
   geometry_msgs::msg::TransformStamped transform;
   transform.header.stamp = stamp_;
   transform.header.frame_id = "odom";
-  transform.child_frame_id = frame_id_;
+  transform.child_frame_id = base_frame_id_;
 
   transform.transform.translation.x = x;
   transform.transform.translation.y = y;
@@ -154,8 +158,9 @@ void mad_icp_ros::Odometry::pointcloud_callback(
   // if stamp_ > new_stamp {
 
   // }
-
   stamp_ = msg->header.stamp;
+
+  RCLCPP_INFO(get_logger(), "scan %f", time_to_double(stamp_));
 
   // mad icp uses unordered clouds
   auto height = msg->height;
@@ -180,9 +185,61 @@ void mad_icp_ros::Odometry::pointcloud_callback(
     pc_container_.emplace_back(point);
   }
 
-  pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
-                     pc_container_);
+  if (use_odom_) {
+    auto initial_guess = T0_.inverse() * T1_;
+    pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
+                       pc_container_, initial_guess);
+  } else {
+    pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
+                       pc_container_);
+  }
   publish_odom_tf();
+
+  // reset the odometry counter
+  n_odom_msgs_ = 0;
+  T0_ = Eigen::Isometry3d::Identity();
+  T1_ = Eigen::Isometry3d::Identity();
+}
+
+void mad_icp_ros::Odometry::odom_callback(
+    const nav_msgs::msg::Odometry::SharedPtr msg) {
+  auto ts = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+  RCLCPP_INFO(get_logger(), "Got odom message %f", ts);
+
+  // stupid implementation where the initial guess is given by the first and
+  // last odom message in between two scans. Better would be to interpolate
+  // the two odom messages between a scan message
+
+  auto stamp = msg->header.stamp;
+
+  // odom message is earlier that latest scan, don't want to handle this yet
+  assert(!(pipeline_->isInitialized() &&
+           (time_to_double(stamp) < time_to_double(stamp_))));
+
+  if (n_odom_msgs_ == 0) {
+    // first odom message
+    // grab the pose
+    T0_.translation() << msg->pose.pose.position.x, msg->pose.pose.position.y,
+        msg->pose.pose.position.z;
+
+    T0_.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
+                                      msg->pose.pose.orientation.x,
+                                      msg->pose.pose.orientation.y,
+                                      msg->pose.pose.orientation.z)
+                       .toRotationMatrix();
+    T1_ = Eigen::Isometry3d::Identity();
+  } else {
+    T1_.translation() << msg->pose.pose.position.x, msg->pose.pose.position.y,
+        msg->pose.pose.position.z;
+
+    T1_.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
+                                      msg->pose.pose.orientation.x,
+                                      msg->pose.pose.orientation.y,
+                                      msg->pose.pose.orientation.z)
+                       .toRotationMatrix();
+  }
+
+  return;
 }
 
 void mad_icp_ros::Odometry::reset() {
@@ -192,6 +249,10 @@ void mad_icp_ros::Odometry::reset() {
   pipeline_ = std::make_unique<Pipeline>(sensor_hz_, deskew_, b_max_, rho_ker_,
                                          p_th_, b_min_, b_ratio_, num_keyframes,
                                          num_cores, realtime);
+
+  n_odom_msgs_ = 0;
+  T0_ = Eigen::Isometry3d::Identity();
+  T1_ = Eigen::Isometry3d::Identity();
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(mad_icp_ros::Odometry)

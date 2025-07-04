@@ -14,8 +14,9 @@ class Odometry : public rclcpp::Node {
   Odometry(const rclcpp::NodeOptions& options);
 
  protected:
-  // TODO make these ROS2 parameters
-  std::string frame_id_{"os0_sensor"};
+  // TODO tie these to ROS2 parameters
+  std::string lidar_frame_id_{"os0_sensor"};
+  std::string base_frame_id_{"base_link"};
   size_t intensity_thr_{0};
   //
 
@@ -48,7 +49,7 @@ class Odometry : public rclcpp::Node {
 
   double sensor_hz_{0};
   bool deskew_{0};
-  Eigen::Matrix4d lidar_to_base_;
+  Eigen::Matrix4d lidar_in_base_;
 
   rclcpp::Time stamp_;
 
@@ -58,5 +59,12 @@ class Odometry : public rclcpp::Node {
   void publish_odom_tf() const;
 
   void reset();
+
+  // odometry initial guess
+  bool use_odom_{true};  // wether to use odometry as an initial guess for
+                         // mad-icp. Tied to the ros2 parameter "use_odom"
+  size_t n_odom_msgs_{0};
+  Eigen::Isometry3d T0_;
+  Eigen::Isometry3d T1_;
 };
 }  // namespace mad_icp_ros

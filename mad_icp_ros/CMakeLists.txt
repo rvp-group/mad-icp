@@ -66,5 +66,15 @@ install(
   RUNTIME DESTINATION bin
 )
 
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# launch files
+install( DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch      
+		 FILES_MATCHING PATTERN "*.launch.py" 
+)
+
 
 ament_package()
