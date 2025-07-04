@@ -35,7 +35,10 @@ def generate_launch_description():
         name="mad_icp_odometry",
         output="screen",
         parameters=[{"use_odom": True}],
-        remappings=[("/points", "/ouster/points")],
+        remappings=[
+            ("/points", "/ouster/points"),
+            ("/odom_init", "/j100_0819/platform/odom"),
+        ],
     )
 
     # hardcoded shit to type less shit

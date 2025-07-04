@@ -1,3 +1,6 @@
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
@@ -26,13 +29,21 @@ class Odometry : public rclcpp::Node {
   std::unique_ptr<Pipeline> pipeline_;
 
   // Subscribers
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_sub_;
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pc_sub_;
+  message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
+  typedef message_filters::sync_policies::ApproximateTime<
+      sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>
+      Points_Odom_Sync_Policy;
+  typedef message_filters::Synchronizer<
+      mad_icp_ros::Odometry::Points_Odom_Sync_Policy>
+      Sync;
+  std::shared_ptr<Sync> sync_;
   //
 
   void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-
+  void callback(std::shared_ptr<const sensor_msgs::msg::PointCloud2> points_msg,
+                std::shared_ptr<const nav_msgs::msg::Odometry> odom_msg);
   // store each message here
   ContainerType pc_container_;
   // PointCloud2 -> std::vector -> madtree (can I save 1 conversion if I write

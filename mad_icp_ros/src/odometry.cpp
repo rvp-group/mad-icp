@@ -1,5 +1,6 @@
 #include "mad_icp_ros/odometry.h"
 
+#include <message_filters/synchronizer.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <yaml-cpp/yaml.h>
 
@@ -84,15 +85,22 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
   auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
                  .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
                  .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
-  pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "points", qos,
-      std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
+  // pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+  //     "points", qos,
+  //     std::bind(&Odometry::pointcloud_callback, this,
+  //     std::placeholders::_1));
+  pc_sub_.subscribe(this, "/points", qos.get_rmw_qos_profile());
+  odom_sub_.subscribe(this, "/odom_init");
 
-  if (use_odom_) {
-    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "odom_init", qos,
-        std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
-  }
+  sync_.reset(new Sync(Points_Odom_Sync_Policy(10), pc_sub_, odom_sub_));
+  sync_->registerCallback(std::bind(
+      &Odometry::callback, this, std::placeholders::_1, std::placeholders::_2));
+}
+
+void mad_icp_ros::Odometry::callback(
+    std::shared_ptr<const sensor_msgs::msg::PointCloud2> points_msg,
+    std::shared_ptr<const nav_msgs::msg::Odometry> odom_msg) {
+  RCLCPP_INFO(get_logger(), "Porco dio aiutatemi");
 }
 
 Eigen::Matrix4d parseMatrix(const std::vector<std::vector<double>>& vec) {
@@ -189,57 +197,16 @@ void mad_icp_ros::Odometry::pointcloud_callback(
     auto initial_guess = T0_.inverse() * T1_;
     pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
                        pc_container_, initial_guess);
+
+    // reset the odometry counter
+    n_odom_msgs_ = 0;
+    T0_ = Eigen::Isometry3d::Identity();
+    T1_ = Eigen::Isometry3d::Identity();
   } else {
     pipeline_->compute(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9,
                        pc_container_);
   }
   publish_odom_tf();
-
-  // reset the odometry counter
-  n_odom_msgs_ = 0;
-  T0_ = Eigen::Isometry3d::Identity();
-  T1_ = Eigen::Isometry3d::Identity();
-}
-
-void mad_icp_ros::Odometry::odom_callback(
-    const nav_msgs::msg::Odometry::SharedPtr msg) {
-  auto ts = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
-  RCLCPP_INFO(get_logger(), "Got odom message %f", ts);
-
-  // stupid implementation where the initial guess is given by the first and
-  // last odom message in between two scans. Better would be to interpolate
-  // the two odom messages between a scan message
-
-  auto stamp = msg->header.stamp;
-
-  // odom message is earlier that latest scan, don't want to handle this yet
-  assert(!(pipeline_->isInitialized() &&
-           (time_to_double(stamp) < time_to_double(stamp_))));
-
-  if (n_odom_msgs_ == 0) {
-    // first odom message
-    // grab the pose
-    T0_.translation() << msg->pose.pose.position.x, msg->pose.pose.position.y,
-        msg->pose.pose.position.z;
-
-    T0_.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
-                                      msg->pose.pose.orientation.x,
-                                      msg->pose.pose.orientation.y,
-                                      msg->pose.pose.orientation.z)
-                       .toRotationMatrix();
-    T1_ = Eigen::Isometry3d::Identity();
-  } else {
-    T1_.translation() << msg->pose.pose.position.x, msg->pose.pose.position.y,
-        msg->pose.pose.position.z;
-
-    T1_.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
-                                      msg->pose.pose.orientation.x,
-                                      msg->pose.pose.orientation.y,
-                                      msg->pose.pose.orientation.z)
-                       .toRotationMatrix();
-  }
-
-  return;
 }
 
 void mad_icp_ros::Odometry::reset() {
