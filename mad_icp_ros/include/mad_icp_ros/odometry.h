@@ -1,15 +1,9 @@
-#include <message_filters/subscriber.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <message_filters/synchronizer.h>
-#include <tf2_ros/transform_broadcaster.h>
-
-#include <fstream>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <Eigen/Dense>
+#include <deque>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
-#include "odometry/pipeline.h"
+#include "odometry/mad_icp.h"
 
 namespace mad_icp_ros {
 
@@ -18,38 +12,9 @@ class Odometry : public rclcpp::Node {
   Odometry(const rclcpp::NodeOptions& options);
 
  protected:
-  // TODO tie these to ROS2 parameters
-  std::string lidar_frame_id_{"os0_sensor"};
-  std::string base_frame_id_{"base_link"};
-  size_t intensity_thr_{0};
-  //
-
-  std::string dataset_config_file_path_;
-  std::string mad_icp_config_file_path_;
-
-  std::unique_ptr<Pipeline> pipeline_;
-
-  // Subscribers
-  message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pc_sub_;
-  message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
-  typedef message_filters::sync_policies::ApproximateTime<
-      sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>
-      Points_Odom_Sync_Policy;
-  typedef message_filters::Synchronizer<
-      mad_icp_ros::Odometry::Points_Odom_Sync_Policy>
-      Sync;
-  std::shared_ptr<Sync> sync_;
-  //
-
-  void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-  // void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-  void callback(std::shared_ptr<const sensor_msgs::msg::PointCloud2> points_msg,
-                std::shared_ptr<const nav_msgs::msg::Odometry> odom_msg);
-  // store each message here
-  ContainerType pc_container_;
-  // PointCloud2 -> std::vector -> madtree (can I save 1 conversion if I write
-  // PointCloud2 to madtree?)
-
+  // mad_icp odometry parameters. They are explained in the
+  // config/mad_icp/jackal.yaml.
+  // Overriding these parameters at runtime has no effect
   double min_range_{0};
   double max_range_{0};
   double b_max_{0};
@@ -58,26 +23,44 @@ class Odometry : public rclcpp::Node {
   double p_th_{0};
   double rho_ker_{0};
   int n_{0};
-
   double sensor_hz_{0};
   bool deskew_{0};
+  double intensity_thr_{0};
   Eigen::Matrix4d lidar_in_base_;
 
+  int num_threads_{0};
+
+  std::string base_frame_{"base_link"};
+  bool use_wheels_{true};
+  // std::string lidar_frame_{"os0_sensor"};
+
+  std::unique_ptr<MADicp> icp_;
+
+  // odometry state
+  Eigen::Isometry3d frame_to_map_;
+  Eigen::Isometry3d keyframe_to_map_;
+  ContainerType pc_container_;  // Intermediate container used to filter points
   rclcpp::Time stamp_;
-
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
-  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
-
-  // temporary file dump
-  std::ofstream out_dump_;
-
-  void publish_odom_tf(bool publish_odom = true, bool publish_tf = true);
-
+  bool initialized_;
+  size_t seq_;  // progressively increasing counter for frames
+  bool map_updated_;
+  std::deque<Frame*> keyframes_;  // each scan is registered to these scans
   void reset();
 
-  // odometry initial guess
-  bool use_odom_{true};  // wether to use odometry as an initial guess for
-                         // mad-icp. Tied to the ros2 parameter "use_odom"
-  Eigen::Isometry3d T0_;
+  // ROS2 Subscribers:
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_sub_;
+  void init_subscribers();
+
+  // ROS2 callbacks
+  void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+
+ private:
+  // Declares and initializes parameters.
+  void init_params();
+
+  // on receiving the first frame, initialize the odometry
+  void initialize(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+
+  int max_parallel_levels_;
 };
 }  // namespace mad_icp_ros

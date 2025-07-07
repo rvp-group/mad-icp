@@ -10,7 +10,6 @@ find_package(Eigen3 3.3 NO_MODULE)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(yaml-cpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -18,11 +17,13 @@ find_package(tf2_ros REQUIRED)
 find_package(message_filters REQUIRED)
 
 find_package(mad_icp REQUIRED)
+find_package(mad_icp_ros_interfaces REQUIRED)
 
 
 # add a library
 add_library(mad_icp_ros_components SHARED 
   src/odometry.cpp
+  src/utils.cpp
 )
 
 # dependencies
@@ -37,7 +38,6 @@ ament_target_dependencies(mad_icp_ros_components
 
 target_link_libraries(mad_icp_ros_components
   odometry
-  yaml-cpp
 )
 
 # OpenMP (I should not need to do this)

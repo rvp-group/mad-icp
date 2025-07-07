@@ -11,15 +11,17 @@
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
-  <depend>mad_icp </depend>
-  <depend>rclcpp </depend>
-  <depend>rclcpp_components </depend>
-  <depend>yaml-cpp </depend>
-  <depend>sensor_msgs </depend>
-  <depend>nav_msgs </depend>
-  <depend>tf2_ros </depend>
-  <depend>tf2 </depend>
-  <depend>message_filters </depend>
+  <depend>mad_icp</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>yaml-cpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2</depend>
+  <depend>message_filters</depend>
+
+  <depend>mad_icp_ros_interfaces</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
