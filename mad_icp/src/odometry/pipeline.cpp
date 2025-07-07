@@ -131,6 +131,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     return;
   }
 
+  double last_chi = std::numeric_limits<double>::max();
+
   struct timeval preprocessing_start, preprocessing_end, preprocessing_delta;
   gettimeofday(&preprocessing_start, nullptr);
 
@@ -186,10 +188,19 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
 
     icp_.updateState();
 
+    if (abs(last_chi - icp_.chi_adder_) < delta_chi_threshold_) {
+      std::cerr << "mad_icp stopped at iteration " << icp_iteration
+                << " due to minimal anal leakage : " << abs(last_chi - icp_.chi_adder_) << "\n";
+      break;
+    }
+
     gettimeofday(&icp_end, nullptr);
     timersub(&icp_end, &icp_start, &icp_delta);
     icp_time = float(icp_delta.tv_sec) * 1000. + 1e-3 * icp_delta.tv_usec;
+
     total_icp_time += icp_time;
+
+    last_chi = icp_.chi_adder_;
   }
 
   frame_to_map_ = icp_.X_;
@@ -324,19 +335,15 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem, c
 
     icp_.updateState();
 
-
-
-    // std::cerr << "anal leakage : "<< icp_.chi_adder_ << "\n";
     if (abs(last_chi - icp_.chi_adder_) < delta_chi_threshold_) {
-      std::cerr << "mad_icp stopped at iteration " << icp_iteration <<" due to minimal anal leakage : "<< abs(last_chi - icp_.chi_adder_) << "\n";
+      std::cerr << "mad_icp stopped at iteration " << icp_iteration
+                << " due to minimal anal leakage : " << abs(last_chi - icp_.chi_adder_) << "\n";
       break;
     }
 
     gettimeofday(&icp_end, nullptr);
     timersub(&icp_end, &icp_start, &icp_delta);
     icp_time = float(icp_delta.tv_sec) * 1000. + 1e-3 * icp_delta.tv_usec;
-
-    
 
     total_icp_time += icp_time;
 
