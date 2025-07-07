@@ -3,6 +3,7 @@
 #include <message_filters/synchronizer.h>
 #include <tf2_ros/transform_broadcaster.h>
 
+#include <fstream>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -41,7 +42,7 @@ class Odometry : public rclcpp::Node {
   //
 
   void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
+  // void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
   void callback(std::shared_ptr<const sensor_msgs::msg::PointCloud2> points_msg,
                 std::shared_ptr<const nav_msgs::msg::Odometry> odom_msg);
   // store each message here
@@ -67,15 +68,16 @@ class Odometry : public rclcpp::Node {
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-  void publish_odom_tf() const;
+  // temporary file dump
+  std::ofstream out_dump_;
+
+  void publish_odom_tf(bool publish_odom = true, bool publish_tf = true);
 
   void reset();
 
   // odometry initial guess
   bool use_odom_{true};  // wether to use odometry as an initial guess for
                          // mad-icp. Tied to the ros2 parameter "use_odom"
-  size_t n_odom_msgs_{0};
   Eigen::Isometry3d T0_;
-  Eigen::Isometry3d T1_;
 };
 }  // namespace mad_icp_ros
