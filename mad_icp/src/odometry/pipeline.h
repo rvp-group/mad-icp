@@ -70,8 +70,6 @@ public:
   const ContainerType modelLeaves();
   void compute(const double& curr_stamp, ContainerType curr_cloud_mem);
 
-  void compute(const double& curr_stamp, ContainerType curr_cloud_mem, const Eigen::Isometry3d& ig);
-
 protected:
   void initialize(const double& curr_stamp, const ContainerTypePtr curr_cloud);
   void deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3d& T_prev, const Eigen::Isometry3d& T_now);
