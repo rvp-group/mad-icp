@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
+
 project(mad_icp_ros)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -20,6 +21,11 @@ find_package(mad_icp REQUIRED)
 find_package(mad_icp_ros_interfaces REQUIRED)
 
 
+set(SC_BUILD_PYTHON_BINDING OFF CACHE BOOL "Skip building the pybind11 module" FORCE)
+set(MASTER_PROJECT_HAS_TARGET_UNINSTALL ON
+    CACHE BOOL "Master project uninstall exists; suppress nanoflann's" FORCE)
+add_subdirectory(scancontext)
+
 # add a library
 add_library(mad_icp_ros_components SHARED 
   src/odometry.cpp
@@ -39,6 +45,7 @@ ament_target_dependencies(mad_icp_ros_components
 
 target_link_libraries(mad_icp_ros_components
   odometry
+  Scancontext::scancontext
 )
 
 # OpenMP (I should not need to do this)

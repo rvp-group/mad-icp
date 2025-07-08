@@ -1,0 +1,3 @@
+[submodule "mad_icp_ros/scancontext"]
+	path = mad_icp_ros/scancontext
+	url = https://github.com/LeoBrizi/scancontext-pybind.git
