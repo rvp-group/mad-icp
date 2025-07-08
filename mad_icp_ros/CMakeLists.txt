@@ -34,6 +34,7 @@ ament_target_dependencies(mad_icp_ros_components
   nav_msgs
   tf2
   tf2_ros
+  mad_icp_ros_interfaces
 )
 
 target_link_libraries(mad_icp_ros_components

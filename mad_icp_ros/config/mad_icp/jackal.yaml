@@ -7,8 +7,11 @@ mad_icp_odometry:
     p_th : 0.8 # [%] ensuring an update when the curr point cloud is registered less than this param
     rho_ker : 0.1 # huber threshold in mad-icp
     n : 10 # the number of last poses to smooth velocity
-    use_wheels : true # use wheel odometry
-    num_threads : 4 # number of threads
+    max_icp_its: 15
+    delta_chi_threshold: 1e-6
+    frame_window: 10
+    num_threads : 4 # nr of threads
+    num_keyframes: 4 # nr of keyframes to which register to
 
     # sensor
     min_range : 0.1
@@ -22,5 +25,10 @@ mad_icp_odometry:
       0.000,  0.000,  0.000, 1.000]
     intensity_thr : 0.0 # filter low intensity points
 
+
+    use_wheels : true # use wheel odometry
+
     # ROS2
     base_frame : "base_link"
+    publish_odom: true
+    publish_tf: true

@@ -1,5 +1,9 @@
+#include <tf2_ros/transform_broadcaster.h>
+
 #include <Eigen/Dense>
 #include <deque>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -15,51 +19,70 @@ class Odometry : public rclcpp::Node {
   // mad_icp odometry parameters. They are explained in the
   // config/mad_icp/jackal.yaml.
   // Overriding these parameters at runtime has no effect
-  double min_range_{0};
-  double max_range_{0};
   double b_max_{0};
   double b_min_{0};
   double b_ratio_{0};
   double p_th_{0};
   double rho_ker_{0};
   int n_{0};
+  size_t max_icp_its_{0};
+  double delta_chi_threshold_{0};
+  size_t frame_window_{0};
   double sensor_hz_{0};
   bool deskew_{0};
+  double min_range_{0};
+  double max_range_{0};
   double intensity_thr_{0};
   Eigen::Matrix4d lidar_in_base_;
 
   int num_threads_{0};
+  int num_keyframes_{0};
 
   std::string base_frame_{"base_link"};
   bool use_wheels_{true};
+
+  bool publish_odom_{false};
+  bool publish_tf_{false};
   // std::string lidar_frame_{"os0_sensor"};
+  //
 
   std::unique_ptr<MADicp> icp_;
 
   // odometry state
   Eigen::Isometry3d frame_to_map_;
-  Eigen::Isometry3d keyframe_to_map_;
+  // Eigen::Isometry3d keyframe_to_map_;
   ContainerType pc_container_;  // Intermediate container used to filter points
   rclcpp::Time stamp_;
   bool initialized_;
   size_t seq_;  // progressively increasing counter for frames
   bool map_updated_;
   std::deque<Frame*> keyframes_;  // each scan is registered to these scans
+  std::deque<Frame*>
+      frames_;  // store recent frames to choose the best keyframe
   void reset();
+  //
 
   // ROS2 Subscribers:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_sub_;
-  void init_subscribers();
-
-  // ROS2 callbacks
   void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  void init_subscribers();
+  //
 
- private:
+  // ROS2 Publishers:
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  void init_publishers();
+  //
+
   // Declares and initializes parameters.
   void init_params();
 
   // on receiving the first frame, initialize the odometry
   void initialize(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  // on receiving subsequent frames, compute the odometry
+  void compute(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+
+  void publish_odom_tf();
 
   int max_parallel_levels_;
 };
