@@ -15,20 +15,6 @@ mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
   init_subscribers();
 }
 
-void mad_icp_ros::Odometry::reset() {
-  icp_ = std::make_unique<MADicp>(b_max_, rho_ker_, b_ratio_, num_threads_);
-
-  frame_to_map_.setIdentity();
-  // keyframe_to_map_.setIdentity();
-  pc_container_.resize(0);
-  stamp_ = rclcpp::Time();
-  initialized_ = false;
-  map_updated_ = false;
-  seq_ = 0;
-  keyframes_.resize(0);
-  frames_.resize(0);
-}
-
 void mad_icp_ros::Odometry::initialize(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   using namespace mad_icp_ros::utils;
@@ -93,9 +79,6 @@ void mad_icp_ros::Odometry::compute(
     icp_->updateState();
 
     if (abs(last_chi - icp_->chi_adder_) < delta_chi_threshold_) {
-      std::cerr << "mad_icp stopped at iteration " << it
-                << " due to minimal anal leakage : "
-                << abs(last_chi - icp_->chi_adder_) << "\n";
       break;
     }
 
@@ -157,13 +140,18 @@ void mad_icp_ros::Odometry::compute(
   }
 }
 
-void mad_icp_ros::Odometry::init_subscribers() {
-  auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
-                 .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
-                 .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
-  pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "points", qos,
-      std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
+void mad_icp_ros::Odometry::reset() {
+  icp_ = std::make_unique<MADicp>(b_max_, rho_ker_, b_ratio_, num_threads_);
+
+  frame_to_map_.setIdentity();
+  // keyframe_to_map_.setIdentity();
+  pc_container_.resize(0);
+  stamp_ = rclcpp::Time();
+  initialized_ = false;
+  map_updated_ = false;
+  seq_ = 0;
+  keyframes_.resize(0);
+  frames_.resize(0);
 }
 
 void mad_icp_ros::Odometry::pointcloud_callback(
@@ -181,6 +169,15 @@ void mad_icp_ros::Odometry::pointcloud_callback(
   }
 
   publish_odom_tf();
+}
+
+void mad_icp_ros::Odometry::init_subscribers() {
+  auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
+                 .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
+                 .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
+  pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      "points", qos,
+      std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
 }
 
 void mad_icp_ros::Odometry::init_publishers() {

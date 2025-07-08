@@ -46,9 +46,8 @@ class Odometry : public rclcpp::Node {
   // std::string lidar_frame_{"os0_sensor"};
   //
 
-  std::unique_ptr<MADicp> icp_;
-
   // odometry state
+  std::unique_ptr<MADicp> icp_;
   Eigen::Isometry3d frame_to_map_;
   // Eigen::Isometry3d keyframe_to_map_;
   ContainerType pc_container_;  // Intermediate container used to filter points
