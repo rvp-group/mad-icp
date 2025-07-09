@@ -38,6 +38,7 @@ struct Frame {
   Frame() {
     frame_to_map_.setIdentity();
     tree_   = nullptr;
+    cloud_  = nullptr;
     stamp_  = 0.;
     weight_ = 0.;
     frame_  = 0;
@@ -45,6 +46,7 @@ struct Frame {
 
   Eigen::Isometry3d frame_to_map_;
   MADtree* tree_;
+  ContainerType* cloud_;
   LeafList leaves_;
   double stamp_;
   double weight_;
