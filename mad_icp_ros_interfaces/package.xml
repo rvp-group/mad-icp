@@ -16,6 +16,9 @@
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
 
+  <depend>geometry_msgs</depend>
+  <depend>mad_icp</depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
