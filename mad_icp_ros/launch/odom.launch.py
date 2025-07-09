@@ -20,8 +20,10 @@ def generate_launch_description():
         default_value=rviz_config_file,
         description="Path to the RViz configuration file",
     )
-    
-    mad_icp_config_filepath = os.path.join(package_dir, "config", "mad_icp", "jackal.yaml")
+
+    mad_icp_config_filepath = os.path.join(
+        package_dir, "config", "mad_icp", "jackal.yaml"
+    )
 
     rviz_node = Node(
         package="rviz2",
@@ -39,7 +41,7 @@ def generate_launch_description():
         parameters=[mad_icp_config_filepath],
         remappings=[
             ("/points", "/ouster/points"),
-            ("/odom_init", "/jackass_odom"),
+            ("/odom_init", "/j100_0819/platform/odom"),
         ],
     )
 
@@ -49,16 +51,16 @@ def generate_launch_description():
             "ros2",
             "bag",
             "play",
-            "/root/test_ros2/bags/rosbag2_2025_06_23-17_01_59",
+            "/home/fabioscap/Desktop/mad-icp/bags/rosbag2_2025_06_23-17_01_59",
         ],
         output="screen",
     )
 
     # Add actions to the LaunchDescription
-    # ld.add_action(use_sim_time)
-    # ld.add_action(rviz_config)
+    ld.add_action(use_sim_time)
+    ld.add_action(rviz_config)
     ld.add_action(mad_icp_ros_node)
-    # ld.add_action(rviz_node)
-    # ld.add_action(bag_play_process)
+    ld.add_action(rviz_node)
+    ld.add_action(bag_play_process)
 
     return ld

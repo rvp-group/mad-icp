@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <deque>
+#include <fstream>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -33,7 +34,7 @@ class Odometry : public rclcpp::Node {
   double min_range_{0};
   double max_range_{0};
   double intensity_thr_{0};
-  Eigen::Matrix4d lidar_in_base_;
+  Eigen::Isometry3d lidar_in_base_;
 
   int num_threads_{0};
   int num_keyframes_{0};
@@ -49,9 +50,12 @@ class Odometry : public rclcpp::Node {
   // odometry state
   std::unique_ptr<MADicp> icp_;
   Eigen::Isometry3d frame_to_map_;
+  Eigen::Isometry3d wheel_to_map_;  // store odom transformation here
+  Eigen::Isometry3d diff_;
   // Eigen::Isometry3d keyframe_to_map_;
   ContainerType pc_container_;  // Intermediate container used to filter points
-  rclcpp::Time stamp_;
+  rclcpp::Time pc_stamp_;
+  rclcpp::Time odom_stamp_;
   bool initialized_;
   size_t seq_;  // progressively increasing counter for frames
   bool map_updated_;
@@ -64,6 +68,8 @@ class Odometry : public rclcpp::Node {
   // ROS2 Subscribers:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pc_sub_;
   void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
   void init_subscribers();
   //
 
@@ -81,7 +87,8 @@ class Odometry : public rclcpp::Node {
   // on receiving subsequent frames, compute the odometry
   void compute(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
-  void publish_odom_tf();
+  void publish_odom_tf(const Eigen::Isometry3d& pose,
+                       const rclcpp::Time& stamp);
 
   int max_parallel_levels_;
 };

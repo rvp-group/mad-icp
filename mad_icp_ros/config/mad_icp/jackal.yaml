@@ -26,7 +26,7 @@ mad_icp_odometry:
     intensity_thr : 0.0 # filter low intensity points
 
 
-    use_wheels : true # use wheel odometry
+    use_wheels : false # use wheel odometry
 
     # ROS2
     base_frame : "base_link"
