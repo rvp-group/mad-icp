@@ -32,3 +32,4 @@ mad_icp_odometry:
     base_frame : "base_link"
     publish_odom: true
     publish_tf: true
+    realtime: true

@@ -62,6 +62,7 @@ class Odometry : public rclcpp::Node {
   std::deque<Frame*> keyframes_;  // each scan is registered to these scans
   std::deque<Frame*>
       frames_;  // store recent frames to choose the best keyframe
+  bool realtime_{false};
   void reset();
   //
 
@@ -91,5 +92,6 @@ class Odometry : public rclcpp::Node {
                        const rclcpp::Time& stamp);
 
   int max_parallel_levels_;
+  double loop_time_;
 };
 }  // namespace mad_icp_ros

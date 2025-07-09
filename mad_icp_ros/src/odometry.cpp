@@ -1,5 +1,7 @@
 #include "mad_icp_ros/odometry.h"
 
+#include <sys/time.h>
+
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
@@ -20,15 +22,18 @@ void mad_icp_ros::Odometry::initialize(
   using namespace mad_icp_ros::utils;
   pc_stamp_ = msg->header.stamp;
 
-  filter_pc(msg, min_range_, max_range_, intensity_thr_, pc_container_);
-
   Frame* current_frame(new Frame);
   current_frame->frame_ = seq_;
+  current_frame->cloud_ = new ContainerType;
+  filter_pc(msg, min_range_, max_range_, intensity_thr_,
+            *current_frame->cloud_);
+
   current_frame->frame_to_map_ = frame_to_map_;
   current_frame->stamp_ = time_to_double(pc_stamp_);
   current_frame->tree_ =
-      new MADtree(&pc_container_, pc_container_.begin(), pc_container_.end(),
-                  b_max_, b_min_, 0, max_parallel_levels_, nullptr, nullptr);
+      new MADtree(current_frame->cloud_, current_frame->cloud_->begin(),
+                  current_frame->cloud_->end(), b_max_, b_min_, 0,
+                  max_parallel_levels_, nullptr, nullptr);
 
   current_frame->tree_->getLeafs(
       std::back_insert_iterator<LeafList>(current_frame->leaves_));
@@ -44,13 +49,22 @@ void mad_icp_ros::Odometry::compute(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   using namespace mad_icp_ros::utils;
 
+  struct timeval preprocessing_start, preprocessing_end, preprocessing_delta;
+  gettimeofday(&preprocessing_start, nullptr);
+
   pc_stamp_ = msg->header.stamp;
 
-  filter_pc(msg, min_range_, max_range_, intensity_thr_, pc_container_);
+  Frame* current_frame(new Frame);
+  current_frame->frame_ = seq_;
+  current_frame->cloud_ = new ContainerType;
+
+  filter_pc(msg, min_range_, max_range_, intensity_thr_,
+            *current_frame->cloud_);
 
   auto current_tree =
-      new MADtree(&pc_container_, pc_container_.begin(), pc_container_.end(),
-                  b_max_, b_min_, 0, max_parallel_levels_, nullptr, nullptr);
+      new MADtree(current_frame->cloud_, current_frame->cloud_->begin(),
+                  current_frame->cloud_->end(), b_max_, b_min_, 0,
+                  max_parallel_levels_, nullptr, nullptr);
 
   LeafList current_leaves;
   current_tree->getLeafs(std::back_insert_iterator<LeafList>(current_leaves));
@@ -68,9 +82,25 @@ void mad_icp_ros::Odometry::compute(
 
   double last_chi = std::numeric_limits<double>::max();
 
-  // do icp iterations
+  float icp_time = 0;
+  float total_icp_time = 0;
+
+  gettimeofday(&preprocessing_end, nullptr);
+  timersub(&preprocessing_end, &preprocessing_start, &preprocessing_delta);
+  const float preprocessing_time = float(preprocessing_delta.tv_sec) * 1000. +
+                                   1e-3 * preprocessing_delta.tv_usec;
+
+  struct timeval icp_start, icp_end, icp_delta;
+
   for (size_t it{0}; it < max_icp_its_; ++it) {
-    // TODO add time bounds for real time
+    const float remaining_time =
+        loop_time_ - 5.0 - (preprocessing_time + total_icp_time + icp_time);
+
+    if (realtime_ && remaining_time < 0) {
+      break;
+    }
+
+    gettimeofday(&icp_start, nullptr);
 
     icp_->resetAdders();
 
@@ -88,6 +118,12 @@ void mad_icp_ros::Odometry::compute(
     }
 
     last_chi = icp_->chi_adder_;
+
+    gettimeofday(&icp_end, nullptr);
+    timersub(&icp_end, &icp_start, &icp_delta);
+    icp_time = float(icp_delta.tv_sec) * 1000. + 1e-3 * icp_delta.tv_usec;
+
+    total_icp_time += icp_time;
   }
 
   frame_to_map_ = icp_->X_;
@@ -99,8 +135,6 @@ void mad_icp_ros::Odometry::compute(
   }
 
   // Increment the list of frames
-  Frame* current_frame(new Frame);
-  current_frame->frame_ = seq_;
   current_frame->frame_to_map_ = frame_to_map_;
   current_frame->stamp_ = time_to_double(pc_stamp_);
   current_frame->weight_ = 1.0 / icp_->H_adder_.determinant();
@@ -295,6 +329,7 @@ void mad_icp_ros::Odometry::init_params() {
   use_wheels_ = this->declare_parameter("use_wheels", false);
   publish_odom_ = this->declare_parameter("publish_odom", false);
   publish_tf_ = this->declare_parameter("publish_tf", false);
+  realtime_ = this->declare_parameter("realtime", false);
   num_threads_ = this->declare_parameter("num_threads", 4);
   num_keyframes_ = this->declare_parameter("num_keyframes", 4);
   intensity_thr_ = this->declare_parameter("intensity_thr", 0.0);
@@ -307,6 +342,8 @@ void mad_icp_ros::Odometry::init_params() {
                           0.0, 0.0, 0.0, 0.0, 1.0}));
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
+
+  loop_time_ = (1. / sensor_hz_) * 1000;
 
   // base_frame_ = this->declare_parameter("base_frame", "base_link");
 }
