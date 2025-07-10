@@ -62,6 +62,9 @@ struct MADtree {
       delete right_;
   }
 
+  MADtree(const MADtree& other) = delete;
+  bool operator==(const MADtree& other) const;
+
   void applyTransform(const Eigen::Matrix3d& r, const Eigen::Vector3d& t);
 
   const MADtree* bestMatchingLeafFast(const Eigen::Vector3d& query) const;
@@ -97,6 +100,7 @@ struct MADtree {
   Eigen::Vector3d bbox_;
   Eigen::Matrix3d eigenvectors_;
 
+  MADtree() {}; // make this public to serialize/deserialize
+
 protected:
-  MADtree(){};
 };

@@ -31,6 +31,7 @@
 #include <Eigen/Eigenvalues>
 #include <fstream>
 #include <future>
+#include <vector>
 
 MADtree::MADtree(const ContainerTypePtr vec,
                  const IteratorType begin,
@@ -58,17 +59,23 @@ void MADtree::build(const ContainerTypePtr vec,
   computeMeanAndCovariance(mean_, cov, begin, end);
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es;
   es.computeDirect(cov);
+
   eigenvectors_ = es.eigenvectors();
-  num_points_   = computeBoundingBox(bbox_, mean_, eigenvectors_.transpose(), begin, end);
+
+  num_points_ = computeBoundingBox(bbox_, mean_, eigenvectors_.transpose(), begin, end);
+
+  auto nr = std::distance(begin, end);
 
   if (bbox_(2) < b_max) {
     if (plane_predecessor) {
+      eigenvectors_.setZero();
       eigenvectors_.col(0) = plane_predecessor->eigenvectors_.col(0);
     } else {
       if (num_points_ < 3) {
         MADtree* node = this;
         while (node->parent_ && node->num_points_ < 3)
           node = node->parent_;
+        eigenvectors_.setZero();
         eigenvectors_.col(0) = node->eigenvectors_.col(0);
       }
     }
@@ -97,35 +104,17 @@ void MADtree::build(const ContainerTypePtr vec,
     split(begin, end, [&](const Eigen::Vector3d& p) -> bool { return (p - mean_).dot(_split_plane_normal) < double(0); });
 
   if (level >= max_parallel_level) {
-    left_ =
-      new MADtree(vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    left_ = new MADtree(vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
 
-    right_ =
-      new MADtree(vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    right_ = new MADtree(vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
   } else {
-    std::future<MADtree*> l = std::async(MADtree::makeSubtree,
-                                         vec,
-                                         begin,
-                                         middle,
-                                         b_max,
-                                         b_min,
-                                         level + 1,
-                                         max_parallel_level,
-                                         this,
-                                         plane_predecessor);
+    std::future<MADtree*> l =
+      std::async(MADtree::makeSubtree, vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
 
-    std::future<MADtree*> r = std::async(MADtree::makeSubtree,
-                                         vec,
-                                         middle,
-                                         end,
-                                         b_max,
-                                         b_min,
-                                         level + 1,
-                                         max_parallel_level,
-                                         this,
-                                         plane_predecessor);
-    left_                   = l.get();
-    right_                  = r.get();
+    std::future<MADtree*> r =
+      std::async(MADtree::makeSubtree, vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    left_  = l.get();
+    right_ = r.get();
   }
 }
 
@@ -169,4 +158,16 @@ void MADtree::applyTransform(const Eigen::Matrix3d& r, const Eigen::Vector3d& t)
     left_->applyTransform(r, t);
   if (right_)
     right_->applyTransform(r, t);
+}
+
+bool MADtree::operator==(const MADtree& other) const {
+  // clang-format off
+  return (num_points_ == other.num_points_ &&
+          matched_ == other.matched_ &&
+          mean_.isApprox(other.mean_, 1e-6) &&
+          bbox_.isApprox(other.bbox_, 1e-6) &&
+          eigenvectors_.isApprox(other.eigenvectors_, 1e-6) &&
+          ((left_ && other.left_) ? (*left_ == *other.left_) : (left_ == other.left_)) &&
+          ((right_ && other.right_) ? (*right_ == *other.right_) : (right_ == other.right_)));
+  // clang-format on
 }
