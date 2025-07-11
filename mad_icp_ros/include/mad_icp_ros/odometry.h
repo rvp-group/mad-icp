@@ -92,6 +92,6 @@ class Odometry : public rclcpp::Node {
                        const rclcpp::Time& stamp);
 
   int max_parallel_levels_;
-  double loop_time_;
+  float loop_time_;
 };
 }  // namespace mad_icp_ros

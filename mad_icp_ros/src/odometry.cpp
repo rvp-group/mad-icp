@@ -5,7 +5,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
-#include "mad_icp_ros/utils.h"
+#include "mad_icp_ros_utils/utils.h"
 
 mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
     : Node("mad_icp_odometry", options) {
@@ -128,7 +128,8 @@ void mad_icp_ros::Odometry::compute(
 
   frame_to_map_ = icp_->X_;
 
-  // update diff TODO move this out of here
+  // update diff
+  // TODO move this out of here
   if (use_wheels_) {
     diff_ = (wheel_to_map_ * lidar_in_base_) *
             (lidar_in_base_ * frame_to_map_).inverse();
@@ -181,6 +182,10 @@ void mad_icp_ros::Odometry::compute(
       keyframes_.pop_front();
     }
   }
+
+  // TODO we need to factor in also the time after the ICP for the real time
+  // computation. We could maybe use the time taken in the last iteration for
+  // this
 }
 
 void mad_icp_ros::Odometry::reset() {
@@ -314,8 +319,12 @@ void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d& pose,
   return;
 }
 
+Eigen::Matrix4d parse_isometry(std::vector<double> mat_vec) {
+  return Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(
+      mat_vec.data());
+}
+
 void mad_icp_ros::Odometry::init_params() {
-  using namespace mad_icp_ros::utils;
   min_range_ = this->declare_parameter("min_range", 0.0);
   max_range_ = this->declare_parameter("max_range", 0.0);
   b_max_ = this->declare_parameter("b_max", 0.2);
