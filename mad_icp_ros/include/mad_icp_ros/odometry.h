@@ -77,6 +77,8 @@ class Odometry : public rclcpp::Node {
   // ROS2 Publishers:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<mad_icp_ros_interfaces::msg::Frame>::SharedPtr frame_pub_;
+  rclcpp::Publisher<mad_icp_ros_interfaces::msg::Frame>::SharedPtr
+      keyframe_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   void init_publishers();
   //

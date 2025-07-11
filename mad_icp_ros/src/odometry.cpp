@@ -113,7 +113,6 @@ void mad_icp_ros::Odometry::compute(
     icp_->updateState();
 
     if (abs(last_chi - icp_->chi_adder_) < delta_chi_threshold_) {
-      // RCLCPP_INFO(get_logger(), "its: %ld", it);
       break;
     }
 
@@ -177,6 +176,10 @@ void mad_icp_ros::Odometry::compute(
     }
 
     keyframes_.push_back(best_frame);
+    mad_icp_ros_interfaces::msg::Frame keyframe_msg;
+    mad_icp_ros::utils::serialize(*best_frame, keyframe_msg);
+    keyframe_pub_->publish(keyframe_msg);
+
     if (keyframes_.size() > num_keyframes_) {
       delete keyframes_.front()->tree_;
       keyframes_.pop_front();
@@ -275,6 +278,8 @@ void mad_icp_ros::Odometry::init_publishers() {
 
   frame_pub_ =
       this->create_publisher<mad_icp_ros_interfaces::msg::Frame>("frames", 10);
+  keyframe_pub_ = this->create_publisher<mad_icp_ros_interfaces::msg::Frame>(
+      "keyframes", 10);
 }
 
 void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d& pose,
