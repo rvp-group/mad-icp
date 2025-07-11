@@ -8,7 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
-
+find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -16,18 +16,18 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES builtin_interfaces std_msgs geometry_msgs
 )
 
-# serialize/deserialize
 find_package(mad_icp REQUIRED)
 find_package(Eigen3 3.3 NO_MODULE)
 
 # add a library
 add_library(mad_icp_ros_utils SHARED 
-  src/serialize.cpp
+  src/utils.cpp
 )
 
 # dependencies
 ament_target_dependencies(mad_icp_ros_utils 
   rclcpp 
+  sensor_msgs
 )
 
 target_link_libraries(mad_icp_ros_utils
