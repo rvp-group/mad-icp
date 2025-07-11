@@ -183,6 +183,10 @@ void mad_icp_ros::Odometry::compute(
     }
   }
 
+  mad_icp_ros_interfaces::msg::Frame frame_msg;
+  mad_icp_ros::utils::serialize(*current_frame, frame_msg);
+  frame_pub_->publish(frame_msg);
+
   // TODO we need to factor in also the time after the ICP for the real time
   // computation. We could maybe use the time taken in the last iteration for
   // this
@@ -268,6 +272,9 @@ void mad_icp_ros::Odometry::init_subscribers() {
 void mad_icp_ros::Odometry::init_publishers() {
   odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
+  frame_pub_ =
+      this->create_publisher<mad_icp_ros_interfaces::msg::Frame>("frames", 10);
 }
 
 void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d& pose,

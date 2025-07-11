@@ -2,12 +2,12 @@
 
 #include <Eigen/Dense>
 #include <deque>
-#include <fstream>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
+#include "mad_icp_ros_interfaces/msg/frame.hpp"
 #include "odometry/mad_icp.h"
 
 namespace mad_icp_ros {
@@ -76,6 +76,7 @@ class Odometry : public rclcpp::Node {
 
   // ROS2 Publishers:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<mad_icp_ros_interfaces::msg::Frame>::SharedPtr frame_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   void init_publishers();
   //
