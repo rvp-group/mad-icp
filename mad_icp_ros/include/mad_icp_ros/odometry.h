@@ -44,6 +44,7 @@ class Odometry : public rclcpp::Node {
 
   bool publish_odom_{false};
   bool publish_tf_{false};
+  bool publish_frames_{false};
   // std::string lidar_frame_{"os0_sensor"};
   //
 

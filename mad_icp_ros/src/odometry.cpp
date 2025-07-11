@@ -176,19 +176,23 @@ void mad_icp_ros::Odometry::compute(
     }
 
     keyframes_.push_back(best_frame);
-    mad_icp_ros_interfaces::msg::Frame keyframe_msg;
-    mad_icp_ros::utils::serialize(*best_frame, keyframe_msg);
-    keyframe_pub_->publish(keyframe_msg);
+
+    if (publish_frames_) {
+      mad_icp_ros_interfaces::msg::Frame keyframe_msg;
+      mad_icp_ros::utils::serialize(*best_frame, keyframe_msg);
+      keyframe_pub_->publish(keyframe_msg);
+    }
 
     if (keyframes_.size() > num_keyframes_) {
       delete keyframes_.front()->tree_;
       keyframes_.pop_front();
     }
   }
-
-  mad_icp_ros_interfaces::msg::Frame frame_msg;
-  mad_icp_ros::utils::serialize(*current_frame, frame_msg);
-  frame_pub_->publish(frame_msg);
+  if (publish_frames_) {
+    mad_icp_ros_interfaces::msg::Frame frame_msg;
+    mad_icp_ros::utils::serialize(*current_frame, frame_msg);
+    frame_pub_->publish(frame_msg);
+  }
 
   // TODO we need to factor in also the time after the ICP for the real time
   // computation. We could maybe use the time taken in the last iteration for
@@ -275,11 +279,12 @@ void mad_icp_ros::Odometry::init_subscribers() {
 void mad_icp_ros::Odometry::init_publishers() {
   odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
-
-  frame_pub_ =
-      this->create_publisher<mad_icp_ros_interfaces::msg::Frame>("frames", 10);
-  keyframe_pub_ = this->create_publisher<mad_icp_ros_interfaces::msg::Frame>(
-      "keyframes", 10);
+  if (publish_frames_) {
+    frame_pub_ = this->create_publisher<mad_icp_ros_interfaces::msg::Frame>(
+        "frames", 10);
+    keyframe_pub_ = this->create_publisher<mad_icp_ros_interfaces::msg::Frame>(
+        "keyframes", 10);
+  }
 }
 
 void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d& pose,
@@ -350,6 +355,7 @@ void mad_icp_ros::Odometry::init_params() {
   use_wheels_ = this->declare_parameter("use_wheels", false);
   publish_odom_ = this->declare_parameter("publish_odom", false);
   publish_tf_ = this->declare_parameter("publish_tf", false);
+  publish_frames_ = this->declare_parameter("publish_frames", false);
   realtime_ = this->declare_parameter("realtime", false);
   num_threads_ = this->declare_parameter("num_threads", 4);
   num_keyframes_ = this->declare_parameter("num_keyframes", 4);
