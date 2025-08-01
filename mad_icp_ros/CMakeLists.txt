@@ -23,6 +23,7 @@ find_package(mad_icp_ros_interfaces REQUIRED)
 # add a library
 add_library(mad_icp_ros_components SHARED 
   src/odometry.cpp
+  src/odom_cbuf.cpp
 )
 
 # dependencies

@@ -52,6 +52,7 @@ void mad_icp_ros::Odometry::compute(
   struct timeval preprocessing_start, preprocessing_end, preprocessing_delta;
   gettimeofday(&preprocessing_start, nullptr);
 
+  auto pc_stamp_old(pc_stamp_);
   pc_stamp_ = msg->header.stamp;
 
   Frame* current_frame(new Frame);
@@ -71,10 +72,14 @@ void mad_icp_ros::Odometry::compute(
 
   icp_->setMoving(current_leaves);
 
-  // TODO move to pcloud callback
   if (use_wheels_) {
-    Eigen::Isometry3d initial_guess =
-        (diff_ * lidar_in_base_).inverse() * wheel_to_map_ * lidar_in_base_;
+    // TODO you have computed T_old in the previous callback already
+    auto [t_old, T_old] = odom_buffer_.query(time_to_double(pc_stamp_old));
+    auto [t_new, T_new] = odom_buffer_.query(time_to_double(pc_stamp_));
+
+    auto initial_guess = frame_to_map_ * lidar_in_base_.inverse() *
+                         T_old.inverse() * T_new * lidar_in_base_;
+
     icp_->init(initial_guess);
   } else {
     icp_->init(frame_to_map_);
@@ -126,13 +131,6 @@ void mad_icp_ros::Odometry::compute(
   }
 
   frame_to_map_ = icp_->X_;
-
-  // update diff
-  // TODO move this out of here
-  if (use_wheels_) {
-    diff_ = (wheel_to_map_ * lidar_in_base_) *
-            (lidar_in_base_ * frame_to_map_).inverse();
-  }
 
   // Increment the list of frames
   current_frame->frame_to_map_ = frame_to_map_;
@@ -203,8 +201,7 @@ void mad_icp_ros::Odometry::reset() {
   icp_ = std::make_unique<MADicp>(b_max_, rho_ker_, b_ratio_, num_threads_);
 
   frame_to_map_.setIdentity();
-  wheel_to_map_.setIdentity();
-  diff_.setIdentity();
+  odom_buffer_ = OdomCircularBuffer();
   // keyframe_to_map_.setIdentity();
   pc_container_.resize(0);
   pc_stamp_ = rclcpp::Time();
@@ -221,7 +218,7 @@ void mad_icp_ros::Odometry::pointcloud_callback(
   using namespace mad_icp_ros::utils;
 
   auto time_now = now();
-  pc_stamp_ = msg->header.stamp;
+  // pc_stamp_ = msg->header.stamp;
 
   RCLCPP_INFO(get_logger(), "scan %f", time_to_double(pc_stamp_));
 
@@ -230,6 +227,10 @@ void mad_icp_ros::Odometry::pointcloud_callback(
   } else {
     compute(msg);
   }
+
+  std::cerr
+      << (lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse()).matrix()
+      << "\n";
 
   publish_odom_tf(lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse(),
                   pc_stamp_);
@@ -242,25 +243,21 @@ void mad_icp_ros::Odometry::odom_callback(
     const nav_msgs::msg::Odometry::SharedPtr msg) {
   using namespace mad_icp_ros::utils;
 
-  wheel_to_map_.translation() << msg->pose.pose.position.x,
+  Eigen::Isometry3d odom_pose;
+
+  odom_pose.translation() << msg->pose.pose.position.x,
       msg->pose.pose.position.y, msg->pose.pose.position.z;
 
-  wheel_to_map_.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
-                                              msg->pose.pose.orientation.x,
-                                              msg->pose.pose.orientation.y,
-                                              msg->pose.pose.orientation.z)
-                               .toRotationMatrix();
-
-  if (time_to_double(odom_stamp_) < 1e-6) {
-    diff_ = (wheel_to_map_ * lidar_in_base_) *
-            (lidar_in_base_ * frame_to_map_).inverse();
-  }
+  odom_pose.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w,
+                                          msg->pose.pose.orientation.x,
+                                          msg->pose.pose.orientation.y,
+                                          msg->pose.pose.orientation.z)
+                           .toRotationMatrix();
 
   odom_stamp_ = msg->header.stamp;
   RCLCPP_INFO(get_logger(), "odom %f", time_to_double(odom_stamp_));
 
-  // TODO if??
-  publish_odom_tf(diff_.inverse() * wheel_to_map_, odom_stamp_);
+  odom_buffer_.insert({time_to_double(odom_stamp_), odom_pose});
 }
 
 void mad_icp_ros::Odometry::init_subscribers() {

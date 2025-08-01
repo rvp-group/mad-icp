@@ -7,6 +7,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
+#include "mad_icp_ros/odom_cbuf.h"
 #include "mad_icp_ros_interfaces/msg/frame.hpp"
 #include "odometry/mad_icp.h"
 
@@ -51,8 +52,7 @@ class Odometry : public rclcpp::Node {
   // odometry state
   std::unique_ptr<MADicp> icp_;
   Eigen::Isometry3d frame_to_map_;
-  Eigen::Isometry3d wheel_to_map_;  // store odom transformation here
-  Eigen::Isometry3d diff_;
+  OdomCircularBuffer odom_buffer_;
   // Eigen::Isometry3d keyframe_to_map_;
   ContainerType pc_container_;  // Intermediate container used to filter points
   rclcpp::Time pc_stamp_;
