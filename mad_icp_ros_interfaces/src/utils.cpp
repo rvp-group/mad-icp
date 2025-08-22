@@ -62,13 +62,15 @@ void mad_icp_ros::utils::serialize(const MADtree& tree,
 void mad_icp_ros::utils::serialize(const Frame& frame,
                                    mad_icp_ros_interfaces::msg::Frame& msg) {
   // TODO: This is the devil!!! Instead of serializing point by point, just copy the data structure from the msg cloud.
+  Eigen::Array3Xd cloud_mat(3, frame.cloud_->size());
   for (size_t i{0}; i < frame.cloud_->size(); ++i) {
     auto& xyz = frame.cloud_->operator[](i);
-    msg.cloud.emplace_back();
-    msg.cloud.back().x = xyz.x();
-    msg.cloud.back().y = xyz.y();
-    msg.cloud.back().z = xyz.z();
+    cloud_mat.col(i) << xyz.x(), xyz.y(), xyz.z();
   }
+  msg.cloud.resize(cloud_mat.size());
+  msg.cloud.assign(cloud_mat.data(), cloud_mat.data() + cloud_mat.size());
+  msg.cloud_size = frame.cloud_->size();
+
 
   serialize(*frame.tree_, msg.tree);
 
@@ -146,9 +148,12 @@ Frame* mad_icp_ros::utils::deserialize(
     const mad_icp_ros_interfaces::msg::Frame& msg) {
   Frame* frame = new Frame();
 
+  Eigen::Array3Xd cloud_mat =
+      Eigen::Map<const Eigen::Array3Xd>(msg.cloud.data(), 3, msg.cloud_size);
+
   frame->cloud_ = new ContainerType;
-  for (size_t i{0}; i < msg.cloud.size(); ++i) {
-    frame->cloud_->emplace_back(msg.cloud[i].x, msg.cloud[i].y, msg.cloud[i].z);
+  for (size_t i{0}; i < msg.cloud_size; ++i) {
+    frame->cloud_->emplace_back(cloud_mat.col(i));
   }
 
   frame->tree_ = deserialize(msg.tree);

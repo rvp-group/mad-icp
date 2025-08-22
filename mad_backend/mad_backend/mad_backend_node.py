@@ -1,7 +1,10 @@
 import rclpy
 from rclpy.node import Node
-from mad_icp_ros_interface.msg import Frame   # <-- import the custom msg
+from mad_icp_ros_interfaces.msg import Frame   # <-- import the custom msg
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+import numpy as np
+
+from pyscancontext import *
 
 class FrameListener(Node):
     def __init__(self):
@@ -14,17 +17,25 @@ class FrameListener(Node):
 
         self.sub = self.create_subscription(
             Frame,               # message type from the other package
-            'frames',            # topic name
-            self.on_msg,        # callback
-            qos                    # QoS depth (or use QoSProfile if needed)
+            '/keyframes',        # topic name
+            self.on_msg,         # callback
+            qos                  # QoS depth (or use QoSProfile if needed)
         )
         self.get_logger().info('FrameListener ready, waiting for frames...')
+
+        scm = SCManager()
 
     def on_msg(self, msg: Frame):
         # Access fields from the custom message
         self.get_logger().info(
-            f"Got Frame: id='{msg.id}', data={msg.data}, stamp={msg.stamp.sec}.{msg.stamp.nanosec}"
+            f"Got Frame: id='{msg.seq}', stamp={msg.stamp.sec}.{msg.stamp.nanosec}"
         )
+
+        cloud_mat = np.array(msg.cloud).reshape(3, msg.cloud_size)
+
+        print("Cloud shape:", cloud_mat.shape)
+        scm.add_node(scd)
+        nn_idx, nn_dist, yaw_diff = scm.detect_loop()
 
 def main():
     rclpy.init()
