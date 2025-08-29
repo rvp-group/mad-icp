@@ -42,7 +42,7 @@ from mad_icp.apps.utils.ros_reader import Ros1Reader
 from mad_icp.apps.utils.ros2_reader import Ros2Reader
 from mad_icp.apps.utils.mcap_reader import McapReader
 from mad_icp.apps.utils.kitti_reader import KittiReader
-from mad_icp.apps.utils.ros_publisher import ImuAndCloudPublisher
+from mad_icp.apps.utils.ros_publisher import Ros1Publisher
 from mad_icp.apps.utils.visualizer import Visualizer
 from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
 from mad_icp.configurations.mad_params import MADConfiguration_lut
@@ -97,10 +97,11 @@ def main(data_path: Annotated[
     publisher = None
     if not noviz:
         visualizer = Visualizer()
-        try:
-            publisher = ImuAndCloudPublisher()
-        except Exception:
-            pass
+
+    try:
+        publisher = Ros1Publisher()
+    except Exception:
+        pass
 
     reader_type = InputDataInterface.kitti
     
@@ -158,7 +159,6 @@ def main(data_path: Annotated[
     rho_ker = mad_icp_cf["rho_ker"]
     n = mad_icp_cf["n"]
 
-
     # check some params for machine
     if (realtime and num_keyframes > num_cores):
         console.print(
@@ -197,6 +197,7 @@ def main(data_path: Annotated[
             write_transformed_pose(estimate_file, base_to_world)
 
             if publisher is not None:
+                # import pdb; pdb.set_trace()
                 publisher.publish_imu(ts, base_to_world)
 
             if not noviz:
