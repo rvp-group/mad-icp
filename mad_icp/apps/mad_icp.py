@@ -37,11 +37,12 @@ import sys
 import yaml
 import numpy as np
 from datetime import datetime
-from mad_icp.apps.utils.utils import write_transformed_pose
+from mad_icp.apps.utils.utils_ext import get_transformed_pose, write_transformed_pose
 from mad_icp.apps.utils.ros_reader import Ros1Reader
 from mad_icp.apps.utils.ros2_reader import Ros2Reader
 from mad_icp.apps.utils.mcap_reader import McapReader
 from mad_icp.apps.utils.kitti_reader import KittiReader
+from mad_icp.apps.utils.ros_publisher import ImuAndCloudPublisher
 from mad_icp.apps.utils.visualizer import Visualizer
 from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
 from mad_icp.configurations.mad_params import MADConfiguration_lut
@@ -93,8 +94,10 @@ def main(data_path: Annotated[
         estimate_path.mkdir(parents=True, exist_ok=True)
 
     visualizer = None
+    publisher = None
     if not noviz:
         visualizer = Visualizer()
+        publisher = ImuAndCloudPublisher()
 
     reader_type = InputDataInterface.kitti
     
@@ -187,14 +190,20 @@ def main(data_path: Annotated[
                 "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
 
             lidar_to_world = pipeline.currentPose()
-            write_transformed_pose(
-                estimate_file, lidar_to_world, lidar_to_base)
+            base_to_world = get_transformed_pose(lidar_to_world, lidar_to_base)
+            write_transformed_pose(estimate_file, base_to_world)
+
+            import pdb; pdb.set_trace()
+            publisher.publish_imu(ts, base_to_world)
 
             if not noviz:
                 t_start = datetime.now()
                 if pipeline.isMapUpdated():
                     visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
                     ), lidar_to_world, pipeline.keyframePose())
+                    import pdb; pdb.set_trace()
+                    # TODO: publish PointCloud2
+                    pass
                 else:
                     visualizer.update(pipeline.currentLeaves(),
                                       None, lidar_to_world, None)
