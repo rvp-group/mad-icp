@@ -23,7 +23,7 @@ class ImuAndCloudPublisher:
         rospy.loginfo("  Output topic: %s", self.out_topic_imu)
         rospy.loginfo("  Output frame_id: %s", self.new_frame_id)
 
-    def publish_imu(self, ts: Any, base_to_world: np.ndarray):
+    def publish_imu(self, ts: np.float64, base_to_world: np.ndarray):
 
         # TODO: assert transform.shape == (4, 4), f"ncorrect transform shape: {transform.shape}""
 
@@ -33,7 +33,8 @@ class ImuAndCloudPublisher:
 
         msg = Imu()
         header = Header()
-        header.stamp = ts
+        header.stamp.sec = int(ts // 1e-9)
+        header.stamp.nsec = int(ts) % 1e-9
         msg.header = header
 
         msg.orientation = Quaternion(*list(quat_out))
@@ -48,5 +49,3 @@ class ImuAndCloudPublisher:
 
         # Republish the message
         self.imu_pub.publish(msg)
-
-        rospy.spin_once()

@@ -97,7 +97,10 @@ def main(data_path: Annotated[
     publisher = None
     if not noviz:
         visualizer = Visualizer()
-        publisher = ImuAndCloudPublisher()
+        try:
+            publisher = ImuAndCloudPublisher()
+        except Exception:
+            pass
 
     reader_type = InputDataInterface.kitti
     
@@ -193,15 +196,15 @@ def main(data_path: Annotated[
             base_to_world = get_transformed_pose(lidar_to_world, lidar_to_base)
             write_transformed_pose(estimate_file, base_to_world)
 
-            import pdb; pdb.set_trace()
-            publisher.publish_imu(ts, base_to_world)
+            if publisher is not None:
+                publisher.publish_imu(ts, base_to_world)
 
             if not noviz:
                 t_start = datetime.now()
                 if pipeline.isMapUpdated():
                     visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
                     ), lidar_to_world, pipeline.keyframePose())
-                    import pdb; pdb.set_trace()
+                    # import pdb; pdb.set_trace()
                     # TODO: publish PointCloud2
                     pass
                 else:
