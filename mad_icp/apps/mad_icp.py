@@ -104,7 +104,7 @@ def main(data_path: Annotated[
         pass
 
     reader_type = InputDataInterface.kitti
-    
+
     if len(list(data_path.glob("*.bag"))) != 0:
         console.print("[yellow] The dataset is in ros bag format")
         reader_type = InputDataInterface.ros1
@@ -175,38 +175,51 @@ def main(data_path: Annotated[
 
     with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
         t_start = datetime.now()
-        for ts, points in track(reader, description="processing..."):
-
-            print("Loading frame #", pipeline.currentID())
+        for ts, points in reader:  #track(reader, description="processing..."):
 
             points = VectorEigen3d(points)
             t_end = datetime.now()
             t_delta = t_end - t_start
-            print("Time for reading points [ms]: ",
-                  t_delta.total_seconds() * 1000)
+            t_delta_read_ms = t_delta.total_seconds() * 1000
 
             t_start = datetime.now()
             pipeline.compute(ts, points)
             t_end = datetime.now()
             t_delta = t_end - t_start
+            t_delta_odom_ms = t_delta.total_seconds() * 1000
             print(
-                "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+                f"# {pipeline.currentID()}."
+                f"Time of reading points / odometry estimation [ms]: {t_delta_read_ms}, {t_delta_odom_ms}"
+            )
 
             lidar_to_world = pipeline.currentPose()
             base_to_world = get_transformed_pose(lidar_to_world, lidar_to_base)
             write_transformed_pose(estimate_file, base_to_world)
 
             if publisher is not None:
-                # import pdb; pdb.set_trace()
                 publisher.publish_imu(ts, base_to_world)
+
+            current_leaves = pipeline.currentLeaves()
+            if pipeline.isMapUpdated():
+                model_leaves = pipeline.modelLeaves()
+                kf_pose = pipeline.keyframePose()
+                print("MAP UPDATED")
+                print([len(x) for x in [current_leaves, model_leaves]])
+                print(f"kf_pose:\n{kf_pose}")
+
+                if publisher is not None:
+                    # NOTE: publishing less often for a start
+                    publisher.publish_cloud(ts, current_leaves)
+            else:
+                print(f"Current leaves: {len(current_leaves)}")
 
             if not noviz:
                 t_start = datetime.now()
                 if pipeline.isMapUpdated():
-                    visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
-                    ), lidar_to_world, pipeline.keyframePose())
-                    # import pdb; pdb.set_trace()
-                    # TODO: publish PointCloud2
+                    visualizer.update(
+                        pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose()
+                    )
+                    # TODO: publish PointCloud2 (consider using lidar_to_world or lidar_to_base and base_to_world)
                     pass
                 else:
                     visualizer.update(pipeline.currentLeaves(),

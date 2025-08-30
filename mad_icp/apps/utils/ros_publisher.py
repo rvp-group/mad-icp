@@ -2,15 +2,18 @@ import rospy
 import numpy as np
 from tf import transformations
 from geometry_msgs.msg import Quaternion
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
-from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_multiply
+# from tf.transformations import euler_from_quaternion
+from tf.transformations import quaternion_from_euler, quaternion_multiply
+
+from mad_icp.src.pybind.pypeline import VectorEigen3d
 
 
-quat_enu_from_ned = quaternion_from_euler(np.pi, 0, 0)
+quat_enu_from_ned = quaternion_from_euler(np.pi, 0, 0)  # Rx_180deg
 
 
 def transform_quat_enu_from_ned(quat_orig: Quaternion) -> Quaternion:
@@ -44,10 +47,51 @@ class Ros1Publisher:
         rospy.loginfo("  Output topic: %s", self.out_topic_odom)
         rospy.loginfo("  Output frame_id: %s", self.odom_frame_id)
 
+        self.point_cloud_fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1)
+        ]
+
     def __del__(self):
         rospy.loginfo("MAD-ICP ROS publisher shutting down")
         rospy.signal_shutdown("Shutting down MAD-ICP ROS publisher")
         rospy.sleep(1)
+
+    def publish_cloud(
+            self,
+            ts: np.float64,
+            current_leaves: VectorEigen3d,
+            model_leaves: VectorEigen3d = None,
+            lidar_to_world: np.ndarray = None,
+            keyframe_pose: np.ndarray = None
+        ):
+        msg = PointCloud2()
+        header = Header()
+        header.stamp = rospy.Time(secs=int(ts // 1e9), nsecs=int(ts) % 1e9)
+        msg.header = header
+        msg.header.frame_id = self.map_frame_id
+
+        # Convert VectorEigen3d to numpy array
+        points = np.asarray(current_leaves)  # TODO: which to use? (model_leaves??)
+
+        # Set basic point cloud parameters
+        msg.height = 1  # unordered point cloud
+        msg.width = len(points)  # number of points
+
+        msg.fields = self.point_cloud_fields
+
+        # Set other required parameters
+        msg.is_bigendian = False
+        msg.point_step = 12  # 3 * float32 (4 bytes each)
+        msg.row_step = msg.point_step * msg.width
+
+        # Convert points to bytes
+        msg.data = points.astype(np.float32).tobytes()
+        msg.is_dense = True  # no invalid points
+
+        self.cloud_pub.publish(msg)
+
 
     def publish_imu(self, ts: np.float64, base_to_world: np.ndarray):
 
@@ -60,13 +104,16 @@ class Ros1Publisher:
         msg.header.frame_id = self.map_frame_id
         msg.child_frame_id = self.odom_frame_id
 
-        quat = transformations.quaternion_from_matrix(base_to_world)
-        quat[3] = -quat[3]  # invert the quaternion
+        # NOTE: quaternion already follows ENU convention, but original has odometry to map frame transformation
+        quat = transformations.quaternion_from_matrix(base_to_world)  # odom_to_map
+        quat[3] = -quat[3]  # invert the quaternion (map_to_odom)
         msg.pose.pose.orientation = Quaternion(*list(quat))
-        # msg.pose.pose.orientation = transform_quat_enu_from_ned(Quaternion(*list(quat)))
 
         position = base_to_world[:3, 3:]
-        msg.pose.pose.position = Point(*list(-position))
+        # body NED to body ENU frame conversion (Rx_180deg)
+        position[1] = -position[1]
+        position[2] = -position[2]
+        msg.pose.pose.position = Point(*list(position))
         # `msg.pose.covariance` <- leaving as default (all zeros)
         # `msg.twist.twist.linear` <- looks like `linear_velocity` or `linear_acceleration`
         # `msg.twist.twist.angular` <- looks like `angular_velocity`
