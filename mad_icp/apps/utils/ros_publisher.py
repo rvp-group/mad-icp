@@ -6,18 +6,19 @@ from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Header
 
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Pose, Quaternion
+from geometry_msgs.msg import Point, Quaternion
 
 from typing import Any
 
 
 class Ros1Publisher:
     def __init__(self):
-        rospy.init_node('mad_icp', anonymous=True)
+        rospy.init_node('mad_icp', anonymous=True, disable_signals=True)
 
         self.out_topic_odom = rospy.get_param('~out_topic_odom', '/odometry/imu')
         self.out_topic_cloud = rospy.get_param('~out_topic_cloud', '/cloud_output')
-        self.new_frame_id = rospy.get_param('~new_frame_id', 'imu_link')
+        self.odom_frame_id = rospy.get_param('~odom_frame_id', 'imu_link')
+        self.map_frame_id = rospy.get_param('~map_frame_id', 'map')
 
         # Setup subscriber and publisher
         self.odom_pub = rospy.Publisher(self.out_topic_odom, Odometry, queue_size=10)
@@ -25,7 +26,12 @@ class Ros1Publisher:
 
         rospy.loginfo("MAD-ICP ROS publisher started:")
         rospy.loginfo("  Output topic: %s", self.out_topic_odom)
-        rospy.loginfo("  Output frame_id: %s", self.new_frame_id)
+        rospy.loginfo("  Output frame_id: %s", self.odom_frame_id)
+
+    def __del__(self):
+        rospy.loginfo("MAD-ICP ROS publisher shutting down")
+        rospy.signal_shutdown("Shutting down MAD-ICP ROS publisher")
+        rospy.sleep(1)
 
     def publish_imu(self, ts: np.float64, base_to_world: np.ndarray):
 
@@ -35,21 +41,20 @@ class Ros1Publisher:
         header = Header()
         header.stamp = rospy.Time(secs=int(ts // 1e9), nsecs=int(ts) % 1e9)
         msg.header = header
-        msg.header.frame_id = self.new_frame_id
+        msg.header.frame_id = self.map_frame_id
+        msg.child_frame_id = self.odom_frame_id
+
+        # TODO: apply NED to ENU conversion like in `imu_frame_remapper.py`
 
         quat = transformations.quaternion_from_matrix(base_to_world)
-        quat_out = [1, 0, 0, 0]
+        position = base_to_world[:3, 3:]
+        msg.pose.pose.orientation = Quaternion(*list(quat))
+        msg.pose.pose.position = Point(*list(position))
+        # `msg.pose.covariance` <- leaving as default (all zeros)
+        # `msg.twist.twist.linear` <- looks like `linear_velocity` or `linear_acceleration`
+        # `msg.twist.twist.angular` <- looks like `angular_velocity`
+        # `msg.position = base_to_world[:3, 3:]` <- leaving as default (all zeros)
+        # `msg.twist.covariance` seems to consist of covariances for `linear_acceleration` & `angular_velocity`
 
-        position = base_to_world[3, :3]
-
-        msg.orientation = Quaternion(*list(quat_out))
-        # `msg.orientation_covariance` <- leaving as default (all zeros)
-        # `msg.angular_velocity` <- leaving as default (all zeros)
-        # `msg.angular_velocity_covariance` <- leaving as default (all zeros)
-        # `msg.linear_acceleration` <- leaving as default (all zeros)
-        # `msg.linear_acceleration_covariance` <- leaving as default (all zeros)
-
-
-
-        # Republish the message
+        # Publish the message
         self.odom_pub.publish(msg)
