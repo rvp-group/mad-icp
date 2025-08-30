@@ -7,8 +7,24 @@ from std_msgs.msg import Header
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
+from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_multiply
 
-from typing import Any
+
+quat_enu_from_ned = quaternion_from_euler(np.pi, 0, 0)
+
+
+def transform_quat_enu_from_ned(quat_orig: Quaternion) -> Quaternion:
+    """
+    Args:
+        quat_orig: rotation from body coord frame to ground (NED)
+    Output:
+        quat_out: rotation from body coord frame to ground (ENU)
+    """
+    quat_ned_orig = [quat_orig.x, quat_orig.y, quat_orig.z, quat_orig.w]
+    quat_out = quaternion_multiply(quat_enu_from_ned, quat_ned_orig)
+    # rpy = euler_from_quaternion(quat_ned_orig)
+    # print(f"Q NED: {quat_ned_orig} // RPY: {rpy} // Q ENU: {quat_out}")
+    return Quaternion(*list(quat_out))
 
 
 class Ros1Publisher:
@@ -44,12 +60,13 @@ class Ros1Publisher:
         msg.header.frame_id = self.map_frame_id
         msg.child_frame_id = self.odom_frame_id
 
-        # TODO: apply NED to ENU conversion like in `imu_frame_remapper.py`
-
         quat = transformations.quaternion_from_matrix(base_to_world)
-        position = base_to_world[:3, 3:]
+        quat[3] = -quat[3]  # invert the quaternion
         msg.pose.pose.orientation = Quaternion(*list(quat))
-        msg.pose.pose.position = Point(*list(position))
+        # msg.pose.pose.orientation = transform_quat_enu_from_ned(Quaternion(*list(quat)))
+
+        position = base_to_world[:3, 3:]
+        msg.pose.pose.position = Point(*list(-position))
         # `msg.pose.covariance` <- leaving as default (all zeros)
         # `msg.twist.twist.linear` <- looks like `linear_velocity` or `linear_acceleration`
         # `msg.twist.twist.angular` <- looks like `angular_velocity`
