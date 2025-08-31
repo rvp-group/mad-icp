@@ -84,7 +84,9 @@ def main(data_path: Annotated[
         realtime: Annotated[
         bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
         noviz: Annotated[
-        bool, typer.Option(help="if true visualizer on", show_default=True)] = False) -> None:
+        bool, typer.Option(help="if true visualizer on", show_default=True)] = False,
+        noros: Annotated[
+        bool, typer.Option(help="if true do not publish to ros", show_default=True)] = False) -> None:
     if not data_path.exists():
         console.print(f"[red] {data_path} does not exist!")
         sys.exit(-1)
@@ -99,9 +101,10 @@ def main(data_path: Annotated[
         visualizer = Visualizer()
 
     try:
-        publisher = Ros1Publisher()
-    except Exception:
-        pass
+        if not noros:
+            publisher = Ros1Publisher()
+    except Exception as e:
+        console.print(f"[red] Error: {e}")
 
     reader_type = InputDataInterface.kitti
 
@@ -221,8 +224,6 @@ def main(data_path: Annotated[
                     visualizer.update(
                         pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose()
                     )
-                    # TODO: publish PointCloud2 (consider using lidar_to_world or lidar_to_base and base_to_world)
-                    pass
                 else:
                     visualizer.update(pipeline.currentLeaves(),
                                       None, lidar_to_world, None)
