@@ -191,7 +191,7 @@ def main(data_path: Annotated[
             t_delta = t_end - t_start
             t_delta_odom_ms = t_delta.total_seconds() * 1000
             print(
-                f"# {pipeline.currentID()}."
+                f"ID {pipeline.currentID()}: "
                 f"Time of reading points / odometry estimation [ms]: {t_delta_read_ms}, {t_delta_odom_ms}"
             )
 

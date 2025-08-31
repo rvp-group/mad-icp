@@ -7,27 +7,8 @@ from std_msgs.msg import Header
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
-# from tf.transformations import euler_from_quaternion
-from tf.transformations import quaternion_from_euler, quaternion_multiply
 
 from mad_icp.src.pybind.pypeline import VectorEigen3d
-
-
-quat_enu_from_ned = quaternion_from_euler(np.pi, 0, 0)  # Rx_180deg
-
-
-def transform_quat_enu_from_ned(quat_orig: Quaternion) -> Quaternion:
-    """
-    Args:
-        quat_orig: rotation from body coord frame to ground (NED)
-    Output:
-        quat_out: rotation from body coord frame to ground (ENU)
-    """
-    quat_ned_orig = [quat_orig.x, quat_orig.y, quat_orig.z, quat_orig.w]
-    quat_out = quaternion_multiply(quat_enu_from_ned, quat_ned_orig)
-    # rpy = euler_from_quaternion(quat_ned_orig)
-    # print(f"Q NED: {quat_ned_orig} // RPY: {rpy} // Q ENU: {quat_out}")
-    return Quaternion(*list(quat_out))
 
 
 class Ros1Publisher:
@@ -101,11 +82,11 @@ class Ros1Publisher:
             model_leaves: VectorEigen3d,
         ):
         msg = self._prepare_cloud_msg(ts, model_leaves)
-        self.cloud_pub.publish(msg)
+        self.cloud_complete_pub.publish(msg)
 
     def publish_imu(self, ts: np.float64, base_to_world: np.ndarray):
 
-        assert base_to_world.shape == (4, 4), f"ncorrect base_to_world shape: {base_to_world.shape}"
+        assert base_to_world.shape == (4, 4), f"Incorrect base_to_world shape: {base_to_world.shape}"
 
         msg = Odometry()
         header = Header()
@@ -114,7 +95,7 @@ class Ros1Publisher:
         msg.header.frame_id = self.map_frame_id
         msg.child_frame_id = self.odom_frame_id
 
-        # NOTE: quaternion already follows ENU convention, but original has odometry to map frame transformation
+        # NOTE: quaternion already follows ENU convention, but original has the inverse transformation (odom_to_map)
         quat = transformations.quaternion_from_matrix(base_to_world)  # odom_to_map
         quat[3] = -quat[3]  # invert the quaternion (map_to_odom)
         msg.pose.pose.orientation = Quaternion(*list(quat))
