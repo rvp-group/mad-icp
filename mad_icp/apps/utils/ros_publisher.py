@@ -35,13 +35,15 @@ class Ros1Publisher:
         rospy.init_node('mad_icp', anonymous=True, disable_signals=True)
 
         self.out_topic_odom = rospy.get_param('~out_topic_odom', '/odometry/imu')
-        self.out_topic_cloud = rospy.get_param('~out_topic_cloud', '/cloud_output')
+        self.out_topic_cloud = rospy.get_param('~out_topic_cloud', '/cloud/complete')
+        self.out_topic_cloud_current = rospy.get_param('~out_topic_cloud_current', '/cloud/current')
         self.odom_frame_id = rospy.get_param('~odom_frame_id', 'imu_link')
         self.map_frame_id = rospy.get_param('~map_frame_id', 'map')
 
         # Setup subscriber and publisher
         self.odom_pub = rospy.Publisher(self.out_topic_odom, Odometry, queue_size=10)
-        self.cloud_pub = rospy.Publisher(self.out_topic_cloud, PointCloud2, queue_size=10)
+        self.cloud_complete_pub = rospy.Publisher(self.out_topic_cloud, PointCloud2, queue_size=10)
+        self.cloud_current_pub = rospy.Publisher(self.out_topic_cloud_current, PointCloud2, queue_size=10)
 
         rospy.loginfo("MAD-ICP ROS publisher started:")
         rospy.loginfo("  Output topic: %s", self.out_topic_odom)
@@ -58,14 +60,7 @@ class Ros1Publisher:
         rospy.signal_shutdown("Shutting down MAD-ICP ROS publisher")
         rospy.sleep(1)
 
-    def publish_cloud(
-            self,
-            ts: np.float64,
-            current_leaves: VectorEigen3d,
-            model_leaves: VectorEigen3d = None,
-            lidar_to_world: np.ndarray = None,
-            keyframe_pose: np.ndarray = None
-        ):
+    def _prepare_cloud_msg(self, ts: np.float64, points: VectorEigen3d) -> PointCloud2:
         msg = PointCloud2()
         header = Header()
         header.stamp = rospy.Time(secs=int(ts // 1e9), nsecs=int(ts) % 1e9)
@@ -73,7 +68,7 @@ class Ros1Publisher:
         msg.header.frame_id = self.map_frame_id
 
         # Convert VectorEigen3d to numpy array
-        points = np.asarray(current_leaves)  # TODO: which to use? (model_leaves??)
+        points = np.asarray(points)
 
         # Set basic point cloud parameters
         msg.height = 1  # unordered point cloud
@@ -90,8 +85,23 @@ class Ros1Publisher:
         msg.data = points.astype(np.float32).tobytes()
         msg.is_dense = True  # no invalid points
 
-        self.cloud_pub.publish(msg)
+        return msg
 
+    def publish_current_cloud(
+            self,
+            ts: np.float64,
+            current_leaves: VectorEigen3d,
+        ):
+        msg = self._prepare_cloud_msg(ts, current_leaves)
+        self.cloud_current_pub.publish(msg)
+
+    def publish_complete_cloud(
+            self,
+            ts: np.float64,
+            model_leaves: VectorEigen3d,
+        ):
+        msg = self._prepare_cloud_msg(ts, model_leaves)
+        self.cloud_pub.publish(msg)
 
     def publish_imu(self, ts: np.float64, base_to_world: np.ndarray):
 

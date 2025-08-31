@@ -196,22 +196,24 @@ def main(data_path: Annotated[
             base_to_world = get_transformed_pose(lidar_to_world, lidar_to_base)
             write_transformed_pose(estimate_file, base_to_world)
 
-            if publisher is not None:
-                publisher.publish_imu(ts, base_to_world)
-
             current_leaves = pipeline.currentLeaves()
-            if pipeline.isMapUpdated():
-                model_leaves = pipeline.modelLeaves()
-                kf_pose = pipeline.keyframePose()
-                print("MAP UPDATED")
-                print([len(x) for x in [current_leaves, model_leaves]])
-                print(f"kf_pose:\n{kf_pose}")
 
-                if publisher is not None:
-                    # NOTE: publishing less often for a start
-                    publisher.publish_cloud(ts, current_leaves)
-            else:
-                print(f"Current leaves: {len(current_leaves)}")
+            if publisher is not None:
+                t_start = datetime.now()
+                publisher.publish_imu(ts, base_to_world)
+                publisher.publish_current_cloud(ts, current_leaves)
+
+                if pipeline.isMapUpdated():
+                    model_leaves = pipeline.modelLeaves()
+                    kf_pose = pipeline.keyframePose()
+                    print(f"MAP UPDATED: {[len(x) for x in [current_leaves, model_leaves]]}")
+                    print(f"kf_pose:\n{kf_pose}")
+                    publisher.publish_complete_cloud(ts, model_leaves)
+
+                t_end = datetime.now()
+                t_delta = t_end - t_start
+                t_delta_publish_ms = t_delta.total_seconds() * 1000
+                print(f"Time for publishing [ms]: {t_delta_publish_ms}")
 
             if not noviz:
                 t_start = datetime.now()
