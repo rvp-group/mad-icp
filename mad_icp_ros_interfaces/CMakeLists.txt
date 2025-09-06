@@ -28,6 +28,7 @@ add_library(mad_icp_ros_utils SHARED
 ament_target_dependencies(mad_icp_ros_utils 
   rclcpp 
   sensor_msgs
+  geometry_msgs
 )
 
 target_link_libraries(mad_icp_ros_utils
@@ -53,9 +54,9 @@ install(
 )
 
 # Install message files
-install(DIRECTORY msg
-  DESTINATION share/${PROJECT_NAME}
-)
+# install(DIRECTORY msg
+#   DESTINATION share/${PROJECT_NAME}
+# )
 install(DIRECTORY include/
   DESTINATION include/${PROJECT_NAME}
 )
@@ -64,5 +65,6 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(
   include
 )
+ament_export_dependencies(rosidl_default_runtime rclcpp sensor_msgs geometry_msgs)
 
 ament_package()
