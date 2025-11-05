@@ -61,16 +61,11 @@ void mad_icp_ros::utils::serialize(const MADtree& tree,
 
 void mad_icp_ros::utils::serialize(const Frame& frame,
                                    mad_icp_ros_interfaces::msg::Frame& msg) {
-  // TODO: This is the devil!!! Instead of serializing point by point, just copy the data structure from the msg cloud.
-  Eigen::Array3Xd cloud_mat(3, frame.cloud_->size());
-  for (size_t i{0}; i < frame.cloud_->size(); ++i) {
-    auto& xyz = frame.cloud_->operator[](i);
-    cloud_mat.col(i) << xyz.x(), xyz.y(), xyz.z();
-  }
-  msg.cloud.resize(cloud_mat.size());
-  msg.cloud.assign(cloud_mat.data(), cloud_mat.data() + cloud_mat.size());
-  msg.cloud_size = frame.cloud_->size();
+  const size_t num_points = frame.cloud_->size();
+  double* data_ptr = reinterpret_cast<double*>(frame.cloud_->data());
+  msg.cloud.assign(data_ptr, data_ptr + num_points * 3);
 
+  msg.cloud_size = frame.cloud_->size();
 
   serialize(*frame.tree_, msg.tree);
 
