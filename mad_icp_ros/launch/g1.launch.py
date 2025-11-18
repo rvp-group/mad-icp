@@ -1,7 +1,7 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node, SetParameter
@@ -15,11 +15,11 @@ def generate_launch_description():
 
     package_dir = FindPackageShare(package="mad_icp_ros").find("mad_icp_ros")
     rviz_config_file = os.path.join(package_dir, "config", "rviz", "viz.rviz")
-    rviz_config = DeclareLaunchArgument(
-        "rviz_config",
-        default_value=rviz_config_file,
-        description="Path to the RViz configuration file",
-    )
+    # rviz_config = DeclareLaunchArgument(
+    #     "rviz_config",
+    #     default_value=rviz_config_file,
+    #     description="Path to the RViz configuration file",
+    # )
 
     mad_icp_config_filepath = os.path.join(
         package_dir, "config", "mad_icp", "unitree_g1.yaml"
@@ -40,8 +40,8 @@ def generate_launch_description():
         output="screen",
         parameters=[mad_icp_config_filepath],
         remappings=[
-            ("/points", "/ouster/points"),
-            ("/odom_init", "/j100_0819/platform/odom"),
+            ("/points", "/utlidar/cloud_livox_mid360"),
+            # ("/odom_init", "/j100_0819/platform/odom"),
         ],
     )
 
@@ -55,10 +55,22 @@ def generate_launch_description():
     #     ],
     #     output="screen",
     # )
+    #
+
+    # Configure CycloneDDS
+    cyclonedds_config = os.path.join(package_dir, "config", "cyclonedds.xml")
+    ld.add_action(
+        SetEnvironmentVariable(name="RMW_IMPLEMENTATION", value="rmw_cyclonedds_cpp")
+    )
+    ld.add_action(
+        SetEnvironmentVariable(
+            name="CYCLONEDDS_URI", value=f"file://{cyclonedds_config}"
+        )
+    )
 
     # Add actions to the LaunchDescription
     ld.add_action(use_sim_time)
-    ld.add_action(rviz_config)
+    # ld.add_action(rviz_config)
     ld.add_action(mad_icp_ros_node)
     # ld.add_action(rviz_node)
     # ld.add_action(bag_play_process)

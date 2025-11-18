@@ -17,6 +17,7 @@ RUN apt-get install -y \
   libeigen3-dev \
   python3-venv \
   python3-pip \
+  ros-humble-rmw-cyclonedds-cpp \
   && \
   rm -rf /var/lib/apt/lists/*
 
@@ -26,6 +27,7 @@ RUN apt-get install -y \
 WORKDIR $OVERLAY_WS/src
 COPY . ./
 
+ENV RWM_IMPLEMENTATION=rmw_cyclonedds_cpp
 WORKDIR $OVERLAY_WS
 # setup mad-icp python package
 # RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
