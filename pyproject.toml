@@ -8,30 +8,30 @@ version = "0.0.10"
 description = "It Is All About Matching Data -- Robust and Informed LiDAR Odometry"
 readme = "README.md"
 authors = [
-    { name = "Simone Ferrari", email = "s.ferrari@diag.uniroma1.it" },
-    { name = "Luca Di Giammarino", email = "digiammarino@diag.uniroma1.it" },
-    { name = "Leonardo Brizi", email = "brizi@diag.uniroma1.it" },
-    { name = "Emanuele Giacomini", email = "giacomini@diag.uniroma1.it" },
+  { name = "Simone Ferrari", email = "s.ferrari@diag.uniroma1.it" },
+  { name = "Luca Di Giammarino", email = "digiammarino@diag.uniroma1.it" },
+  { name = "Leonardo Brizi", email = "brizi@diag.uniroma1.it" },
+  { name = "Emanuele Giacomini", email = "giacomini@diag.uniroma1.it" },
 ]
 keywords = ["LiDAR"]
 requires-python = ">=3.8"
 
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD License",
-    "Operating System :: Unix",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: Unix",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "PyYAML==6.0.1",
-    "numpy>=1.26.0",
-    "rosbags==0.9.23",
-    "open3d",
-    "matplotlib>=3.8",
-    "typer==0.12.3",
-    "natsort==8.4.0",
-    "rich==13.7.1",
+  "PyYAML==6.0.1",
+  "numpy",
+  "rosbags==0.9.23",
+  "open3d",
+  "matplotlib",
+  "typer==0.12.3",
+  "natsort==8.4.0",
+  "rich==13.7.1",
 ]
 
 [project.scripts]
