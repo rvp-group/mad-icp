@@ -29,7 +29,8 @@ mad_icp_odometry:
     use_wheels : false # use wheel odometry
 
     # ROS2
-    base_frame : "base_link"
+    # base_frame : "base_link"
+    base_frame: "livox_frame"
     publish_odom: true
     publish_tf: true
     realtime: true

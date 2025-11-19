@@ -25,13 +25,13 @@ def generate_launch_description():
         package_dir, "config", "mad_icp", "unitree_g1.yaml"
     )
 
-    # rviz_node = Node(
-    #     package="rviz2",
-    #     executable="rviz2",
-    #     name="rviz2",
-    #     output="screen",
-    #     arguments=["-d", LaunchConfiguration("rviz_config")],
-    # )
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="screen",
+        # arguments=["-d", LaunchConfiguration("rviz_config")],
+    )
 
     mad_icp_ros_node = Node(
         package="mad_icp_ros",
@@ -72,7 +72,7 @@ def generate_launch_description():
     ld.add_action(use_sim_time)
     # ld.add_action(rviz_config)
     ld.add_action(mad_icp_ros_node)
-    # ld.add_action(rviz_node)
+    ld.add_action(rviz_node)
     # ld.add_action(bag_play_process)
 
     return ld

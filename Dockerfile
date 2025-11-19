@@ -18,6 +18,7 @@ RUN apt-get install -y \
   python3-venv \
   python3-pip \
   ros-humble-rmw-cyclonedds-cpp \
+  ros-humble-rviz2 \
   && \
   rm -rf /var/lib/apt/lists/*
 
@@ -27,11 +28,12 @@ RUN apt-get install -y \
 WORKDIR $OVERLAY_WS/src
 COPY . ./
 
-ENV RWM_IMPLEMENTATION=rmw_cyclonedds_cpp
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 WORKDIR $OVERLAY_WS
 # setup mad-icp python package
 # RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
 #   pip install src/
+#
 
 # build ros2 packages 
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
