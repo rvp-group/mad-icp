@@ -25,12 +25,15 @@ mad_icp_odometry:
       0.000,  0.000,  0.000, 1.000]
     intensity_thr : 0.0 # filter low intensity points
 
+    # Instead of using the "lidar_in_base" parameter, use tf tree to compute it.
+    # This is useful for non-rigid lidar_in_base configurations
+    # the query transform goes from msg::PointCloud2::header::frame_id to base_frame
+    use_tf_for_extrinsics: True     
 
     use_wheels : false # use wheel odometry
 
     # ROS2
-    # base_frame : "base_link"
-    base_frame: "livox_frame"
+    base_frame : "base_link"
     publish_odom: true
     publish_tf: true
     realtime: true

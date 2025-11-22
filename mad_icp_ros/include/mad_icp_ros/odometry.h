@@ -1,4 +1,6 @@
+#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <Eigen/Dense>
 #include <deque>
@@ -14,10 +16,10 @@
 namespace mad_icp_ros {
 
 class Odometry : public rclcpp::Node {
- public:
-  Odometry(const rclcpp::NodeOptions& options);
+public:
+  Odometry(const rclcpp::NodeOptions &options);
 
- protected:
+protected:
   // mad_icp odometry parameters. They are explained in the
   // config/mad_icp/jackal.yaml.
   // Overriding these parameters at runtime has no effect
@@ -46,6 +48,7 @@ class Odometry : public rclcpp::Node {
   bool publish_odom_{false};
   bool publish_tf_{false};
   bool publish_frames_{false};
+  bool use_tf_for_extrinsics_{false};
   // std::string lidar_frame_{"os0_sensor"};
   //
 
@@ -54,15 +57,15 @@ class Odometry : public rclcpp::Node {
   Eigen::Isometry3d frame_to_map_;
   OdomCircularBuffer odom_buffer_;
   // Eigen::Isometry3d keyframe_to_map_;
-  ContainerType pc_container_;  // Intermediate container used to filter points
+  ContainerType pc_container_; // Intermediate container used to filter points
   rclcpp::Time pc_stamp_;
   rclcpp::Time odom_stamp_;
   bool initialized_;
-  size_t seq_;  // progressively increasing counter for frames
+  size_t seq_; // progressively increasing counter for frames
   bool map_updated_;
-  std::deque<Frame*> keyframes_;  // each scan is registered to these scans
-  std::deque<Frame*>
-      frames_;  // store recent frames to choose the best keyframe
+  std::deque<Frame *> keyframes_; // each scan is registered to these scans
+  std::deque<Frame *>
+      frames_; // store recent frames to choose the best keyframe
   bool realtime_{false};
   void reset();
   //
@@ -81,6 +84,8 @@ class Odometry : public rclcpp::Node {
   rclcpp::Publisher<mad_icp_ros_interfaces::msg::Frame>::SharedPtr
       keyframe_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   void init_publishers();
   //
 
@@ -92,10 +97,10 @@ class Odometry : public rclcpp::Node {
   // on receiving subsequent frames, compute the odometry
   void compute(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
-  void publish_odom_tf(const Eigen::Isometry3d& pose,
-                       const rclcpp::Time& stamp);
+  void publish_odom_tf(const Eigen::Isometry3d &pose,
+                       const rclcpp::Time &stamp);
 
   int max_parallel_levels_;
   float loop_time_;
 };
-}  // namespace mad_icp_ros
+} // namespace mad_icp_ros

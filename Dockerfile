@@ -1,8 +1,8 @@
-ARG FROM_IMAGE=ros:humble
+ARG FROM_IMAGE=ros:humble-ros-base
 ARG OVERLAY_WS=/opt/ros/overlay_ws
 
-# multi-stage for caching
-FROM $FROM_IMAGE AS cacher
+# Common runtime/build deps
+FROM $FROM_IMAGE AS base
 ARG OVERLAY_WS
 
 # overwrite defaults to persist minimal cache
@@ -18,26 +18,58 @@ RUN apt-get install -y \
   python3-venv \
   python3-pip \
   ros-humble-rmw-cyclonedds-cpp \
-  ros-humble-rviz2 \
-  && \
-  rm -rf /var/lib/apt/lists/*
-
-
-# clone overlay source
-
-WORKDIR $OVERLAY_WS/src
-COPY . ./
+  && rm -rf /var/lib/apt/lists/* 
 
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ENV OVERLAY_WS=${OVERLAY_WS}
 WORKDIR $OVERLAY_WS
-# setup mad-icp python package
-# RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-#   pip install src/
-#
 
-# build ros2 packages 
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-  colcon build
+# ----- DEV STAGE -------
 
+FROM base as dev
 
+RUN apt-get update && apt-get install -y \
+  ros-humble-rviz2 \
+  clangd \
+  gdb \
+  curl \
+  ca-certificates \
+  fzf \
+  ripgrep \
+  fd-find \
+  xz-utils && rm -rf /var/lib/apt/lists/* 
 
+# Install Neovim 0.11.5 (Currently installing x86-64)
+RUN curl -L https://github.com/neovim/neovim/releases/download/v0.11.5/nvim-linux-x86_64.tar.gz \
+  -o /tmp/nvim.tar.gz && \
+  tar xzf /tmp/nvim.tar.gz -C /opt && \
+  ln -s /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim && \
+  rm /tmp/nvim.tar.gz
+
+RUN mkdir -p ${OVERLAY_WS}/src ${OVERLAY_WS}/build ${OVERLAY_WS}/install ${OVERLAY_WS}/log 
+WORKDIR ${OVERLAY_WS}
+
+# ----- BUILD STAGE ------
+
+FROM base as builder
+
+# Repo with multiple packages goes under src/mad-icp
+COPY . src/mad-icp
+
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+  colcon build \
+    --merge-install \
+    --symlink-install \
+    --base-paths src/mad-icp
+
+# ----- DEPLOYMENT STAGE ------
+FROM ros:humble-ros-core AS robot
+ARG OVERLAY_WS
+ENV OVERLAY_WS=${OVERLAY_WS}
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+WORKDIR ${OVERLAY_WS}
+
+COPY --from=builder ${OVERLAY_WS}/install ${OVERLAY_WS}/install
+
+CMD ["/bin/bash"]

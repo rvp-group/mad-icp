@@ -72,7 +72,7 @@ def generate_launch_description():
     ld.add_action(use_sim_time)
     # ld.add_action(rviz_config)
     ld.add_action(mad_icp_ros_node)
-    ld.add_action(rviz_node)
+    # ld.add_action(rviz_node)
     # ld.add_action(bag_play_process)
 
     return ld

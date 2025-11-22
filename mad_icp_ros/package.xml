@@ -19,6 +19,7 @@
   <depend>nav_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2</depend>
+  <depend>tf2_eigen</depend>
   <depend>message_filters</depend>
 
   <depend>mad_icp_ros_interfaces</depend>

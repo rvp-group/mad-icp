@@ -4,10 +4,11 @@
 
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 #include "mad_icp_ros_utils/utils.h"
 
-mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions& options)
+mad_icp_ros::Odometry::Odometry(const rclcpp::NodeOptions &options)
     : Node("mad_icp_odometry", options) {
   init_params();
 
@@ -22,7 +23,7 @@ void mad_icp_ros::Odometry::initialize(
   using namespace mad_icp_ros::utils;
   pc_stamp_ = msg->header.stamp;
 
-  Frame* current_frame(new Frame);
+  Frame *current_frame(new Frame);
   current_frame->frame_ = seq_;
   current_frame->cloud_ = new ContainerType;
   filter_pc(msg, min_range_, max_range_, intensity_thr_,
@@ -55,7 +56,7 @@ void mad_icp_ros::Odometry::compute(
   auto pc_stamp_old(pc_stamp_);
   pc_stamp_ = msg->header.stamp;
 
-  Frame* current_frame(new Frame);
+  Frame *current_frame(new Frame);
   current_frame->frame_ = seq_;
   current_frame->cloud_ = new ContainerType;
 
@@ -110,7 +111,7 @@ void mad_icp_ros::Odometry::compute(
     icp_->resetAdders();
 
 #pragma omp parallel for
-    for (const Frame* frame : keyframes_) {
+    for (const Frame *frame : keyframes_) {
       icp_->update(frame->tree_);
     }
 #pragma omp barrier
@@ -146,7 +147,7 @@ void mad_icp_ros::Odometry::compute(
   ++seq_;
 
   int matched_leaves = 0;
-  for (MADtree* l : current_leaves) {
+  for (MADtree *l : current_leaves) {
     if (l->matched_) {
       matched_leaves++;
     }
@@ -157,8 +158,8 @@ void mad_icp_ros::Odometry::compute(
   if (inliers_ratio < p_th_) {
     double best_weight = std::numeric_limits<double>::max();
     int new_seq = 0;
-    Frame* best_frame = nullptr;
-    for (Frame* frame : frames_) {
+    Frame *best_frame = nullptr;
+    for (Frame *frame : frames_) {
       if (frame->weight_ < best_weight) {
         best_weight = frame->weight_;
         new_seq = frame->frame_;
@@ -228,12 +229,35 @@ void mad_icp_ros::Odometry::pointcloud_callback(
     compute(msg);
   }
 
-  std::cerr
-      << (lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse()).matrix()
-      << "\n";
+  Eigen::Isometry3d bTl = lidar_in_base_;
+  if (use_tf_for_extrinsics_) {
+    // Update bTl (baselink_T_lidar) from tf tree
+    geometry_msgs::msg::TransformStamped t;
+    const auto child_id = msg->header.frame_id.c_str();
+    const auto base_id = base_frame_.c_str();
 
-  publish_odom_tf(lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse(),
-                  pc_stamp_);
+    try {
+      // t = tf_buffer_->lookupTransform(child_id, base_id, msg->header.stamp);
+      t = tf_buffer_->lookupTransform(child_id, base_id, tf2::TimePointZero);
+      bTl = tf2::transformToEigen(t);
+      pc_stamp_ =
+          t.header
+              .stamp; // override timestamp for publishing due to sync issues.
+    } catch (const tf2::TransformException &ex) {
+      RCLCPP_WARN(get_logger(), "Could not transform %s to %s: %s", child_id,
+                  base_id, ex.what());
+    }
+  }
+
+  // std::cerr
+  //     << (lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse()).matrix()
+  //     << "\n";
+  // publish_odom_tf(lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse(),
+  //                 pc_stamp_);
+  publish_odom_tf(bTl * frame_to_map_ * bTl.inverse(), pc_stamp_);
+  // publish_odom_tf(
+  //     bTl * frame_to_map_ * bTl.inverse(),
+  //     t.header.stamp); // Publish with t.header.stamp for sync issues
 
   RCLCPP_INFO(get_logger(), "took %f",
               time_to_double(now()) - time_to_double(time_now));
@@ -271,6 +295,10 @@ void mad_icp_ros::Odometry::init_subscribers() {
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "odom_init", qos,
         std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
+
+  // Initialize tf2 listener
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
 void mad_icp_ros::Odometry::init_publishers() {
@@ -284,8 +312,8 @@ void mad_icp_ros::Odometry::init_publishers() {
   }
 }
 
-void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d& pose,
-                                            const rclcpp::Time& stamp) {
+void mad_icp_ros::Odometry::publish_odom_tf(const Eigen::Isometry3d &pose,
+                                            const rclcpp::Time &stamp) {
   // auto vel = pipeline_->currentVel(); // extract also velocity?
   double x = pose(0, 3);
   double y = pose(1, 3);
@@ -364,12 +392,13 @@ void mad_icp_ros::Odometry::init_params() {
       "lidar_in_base",
       std::vector<double>{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
                           0.0, 0.0, 0.0, 0.0, 1.0}));
+  base_frame_ = this->declare_parameter("base_frame", "base_link");
+  use_tf_for_extrinsics_ =
+      this->declare_parameter("use_tf_for_extrinsics", false);
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
 
   loop_time_ = (1. / sensor_hz_) * 1000;
-
-  // base_frame_ = this->declare_parameter("base_frame", "base_link");
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(mad_icp_ros::Odometry)

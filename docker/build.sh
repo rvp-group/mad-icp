@@ -1,10 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "Building docker"
+IMAGE_NAME="mad-icp"
+TARGET="${1:-dev}" # Defaults to dev target
 
-IMAGE_NAME=mad-icp
+case "$TARGET" in
+dev)
+  IMAGE_NAME="${IMAGE_NAME}-dev"
+  DOCKER_TARGET="dev"
+  ;;
+robot)
+  IMAGE_NAME="${IMAGE_NAME}-robot"
+  DOCKER_TARGET="robot"
+  ;;
+*)
+  echo "Usage: $0 [dev|robot]" >&2
+  exit 1
+  ;;
+esac
 
-# docker build --build-arg UNAME=$(whoami) --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t ${IMAGE_NAME} .
-docker build -t ${IMAGE_NAME} .
+echo "Building docker image: ${IMAGE_NAME} (target: ${DOCKER_TARGET})"
 
-echo "Done!"
+docker build \
+  -t "${IMAGE_NAME}" \
+  --target "${DOCKER_TARGET}" \
+  -f Dockerfile .
+
+echo "Done."

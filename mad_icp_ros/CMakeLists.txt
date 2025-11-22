@@ -15,6 +15,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(message_filters REQUIRED)
 
 find_package(mad_icp REQUIRED)
@@ -34,6 +35,7 @@ ament_target_dependencies(mad_icp_ros_components
   nav_msgs
   tf2
   tf2_ros
+  tf2_eigen
   mad_icp_ros_interfaces
 )
 
