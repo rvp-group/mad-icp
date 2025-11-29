@@ -13,11 +13,15 @@ APT::Install-Suggests "false";
 EOF
 
 
-RUN apt-get install -y \
+RUN rm -rf /var/lib/apt/lists/* && \
+  apt-get update && \
+  apt-get install -y \
   libeigen3-dev \
   python3-venv \
   python3-pip \
   ros-humble-rmw-cyclonedds-cpp \
+  ros-humble-pcl-conversions \
+  ros-humble-pcl-ros \
   && rm -rf /var/lib/apt/lists/* 
 
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp

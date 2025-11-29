@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.8)
 
 project(mad_icp_ros)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # add_compile_options(-Wall -Wextra -Wpedantic)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#   add_compile_options(-Wall -Wextra -Wpedantic)
+#   set(CMAKE_CXX_STANDARD 17)
+# endif()
 
 find_package(Eigen3 3.3 NO_MODULE)
 
@@ -18,11 +24,16 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(message_filters REQUIRED)
 
+find_package(pcl_conversions REQUIRED)
+find_package(pcl_ros REQUIRED)
+
 find_package(mad_icp REQUIRED)
 find_package(mad_icp_ros_interfaces REQUIRED)
 
 # add a library
 add_library(mad_icp_ros_components SHARED 
+  src/map_server.cpp
+  src/localization.cpp
   src/odometry.cpp
   src/odom_cbuf.cpp
 )
@@ -37,18 +48,18 @@ ament_target_dependencies(mad_icp_ros_components
   tf2_ros
   tf2_eigen
   mad_icp_ros_interfaces
+  pcl_conversions
+  pcl_ros
 )
 
 target_link_libraries(mad_icp_ros_components
   odometry
 )
-
 # OpenMP (I should not need to do this)
 find_package(OpenMP REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 #
-
 
 # headers
 target_include_directories(mad_icp_ros_components PUBLIC
@@ -59,6 +70,18 @@ rclcpp_components_register_node(
   mad_icp_ros_components
   PLUGIN "mad_icp_ros::Odometry"
   EXECUTABLE mad_icp_odometry
+)
+
+rclcpp_components_register_node(
+  mad_icp_ros_components
+  PLUGIN "mad_icp_ros::Localizer"
+  EXECUTABLE mad_icp_localizer
+)
+
+rclcpp_components_register_node(
+  mad_icp_ros_components
+  PLUGIN "mad_icp_ros::MapServer"
+  EXECUTABLE mad_icp_map_server
 )
 
 # install rules
