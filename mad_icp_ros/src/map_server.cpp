@@ -7,6 +7,7 @@
 #include <rmw/types.h>
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -24,6 +25,7 @@ MapServer::MapServer(const rclcpp::NodeOptions &options)
   load_map();
 
   pub_map_->publish(map_msg_);
+  pub_map_lowres_->publish(map_lowres_msg_);
 }
 
 void MapServer::init_params() {
@@ -35,6 +37,8 @@ void MapServer::init_publishers() {
                  .reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE)
                  .durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
   pub_map_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("map", qos);
+  pub_map_lowres_ =
+      this->create_publisher<sensor_msgs::msg::PointCloud2>("map_lowres", qos);
 }
 
 using PointType = pcl::PointXYZ;
@@ -94,9 +98,20 @@ void MapServer::load_map() {
   RCLCPP_INFO(get_logger(), "Loaded map '%s' with %zu points",
               map_filename_.c_str(), cloud->points.size());
 
+  // Voxeize for low-res visualization map
+  pcl::VoxelGrid<PointType> sor;
+  sor.setInputCloud(cloud);
+  sor.setLeafSize(0.2f, 0.2f, 0.2f);
+  CloudPtr cloud_lowres(new pcl::PointCloud<PointType>);
+  sor.filter(*cloud_lowres);
+
   pcl::toROSMsg(*cloud, map_msg_);
   map_msg_.header.stamp = this->now();
   map_msg_.header.frame_id = "map";
+
+  pcl::toROSMsg(*cloud_lowres, map_lowres_msg_);
+  map_lowres_msg_.header.stamp = map_msg_.header.stamp;
+  map_lowres_msg_.header.frame_id = map_msg_.header.frame_id;
 }
 } // namespace mad_icp_ros
 RCLCPP_COMPONENTS_REGISTER_NODE(mad_icp_ros::MapServer)

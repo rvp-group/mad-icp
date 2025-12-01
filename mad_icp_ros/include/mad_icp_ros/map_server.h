@@ -17,6 +17,7 @@ protected:
   std::string map_format_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_map_;
-  sensor_msgs::msg::PointCloud2 map_msg_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_map_lowres_;
+  sensor_msgs::msg::PointCloud2 map_msg_, map_lowres_msg_;
 };
 } // namespace mad_icp_ros

@@ -3,7 +3,11 @@
 #include <Eigen/Dense>
 #include <eigen3/Eigen/src/Geometry/Transform.h>
 #include <geometry_msgs/msg/detail/pose_with_covariance_stamped__struct.hpp>
+#include <geometry_msgs/msg/detail/transform__struct.hpp>
+#include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
+#include <geometry_msgs/msg/pose_with_covariance.hpp>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <nav_msgs/msg/detail/odometry__struct.hpp>
 #include <rclcpp/qos.hpp>
@@ -88,7 +92,6 @@ void Localizer::init_params() {
   n_ = this->declare_parameter("n", 10);
   sensor_hz_ = this->declare_parameter("sensor_hz", 0.0);
   deskew_ = this->declare_parameter("deskew", false);
-  publish_tf_ = this->declare_parameter("publish_tf", false);
   realtime_ = this->declare_parameter("realtime", false);
   num_threads_ = this->declare_parameter("num_threads", 4);
   intensity_thr_ = this->declare_parameter("intensity_thr", 0.0);
@@ -102,6 +105,10 @@ void Localizer::init_params() {
   base_frame_ = this->declare_parameter("base_frame", "base_link");
   use_tf_for_extrinsics_ =
       this->declare_parameter("use_tf_for_extrinsics", false);
+
+  publish_tf_ = this->declare_parameter("publish_tf", true);
+  publish_pose_ = this->declare_parameter("publish_pose", true);
+  publish_odom_ = this->declare_parameter("publish_odom", true);
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
 
@@ -145,13 +152,62 @@ void Localizer::update_extrinsics(
     const auto child_id = msg->header.frame_id.c_str();
   }
 }
-void Localizer::publish_state(const Eigen::Isometry3d &, const rclcpp::Time &) {
+void Localizer::publish_state(const Eigen::Isometry3d &pose,
+                              const rclcpp::Time &time) {
+  const auto t = pose.translation();
+  const auto q = Eigen::Quaterniond(pose.linear()).normalized();
+
+  geometry_msgs::msg::PoseWithCovariance pose_msg;
+  pose_msg.pose.position.x = t.x();
+  pose_msg.pose.position.y = t.y();
+  pose_msg.pose.position.z = t.z();
+  pose_msg.pose.orientation.x = q.x();
+  pose_msg.pose.orientation.y = q.y();
+  pose_msg.pose.orientation.z = q.z();
+  pose_msg.pose.orientation.w = q.w();
+
+  if (publish_pose_) {
+
+    geometry_msgs::msg::PoseWithCovarianceStamped pose_stamped;
+    pose_stamped.header.stamp = time;
+    pose_stamped.header.frame_id = base_frame_;
+    pose_stamped.pose = pose_msg;
+
+    pose_pub_->publish(pose_stamped);
+  }
+  if (publish_odom_) {
+    nav_msgs::msg::Odometry odom_msg;
+    odom_msg.header.stamp = time;
+    odom_msg.header.frame_id = "map";
+    odom_msg.child_frame_id = base_frame_;
+    odom_msg.pose = pose_msg;
+    odom_pub_->publish(odom_msg);
+  }
+  if (publish_tf_) {
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header.stamp = time;
+    tf_msg.header.frame_id = "map";
+    tf_msg.child_frame_id = base_frame_;
+    tf_msg.transform.translation.x = pose_msg.pose.position.x;
+    tf_msg.transform.translation.y = pose_msg.pose.position.y;
+    tf_msg.transform.translation.z = pose_msg.pose.position.z;
+    tf_msg.transform.rotation.x = pose_msg.pose.orientation.x;
+    tf_msg.transform.rotation.y = pose_msg.pose.orientation.y;
+    tf_msg.transform.rotation.z = pose_msg.pose.orientation.z;
+    tf_msg.transform.rotation.w = pose_msg.pose.orientation.w;
+    tf_broadcaster_->sendTransform(tf_msg);
+  }
 }
 
 void Localizer::callback_cloud_in(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+  if (!initialized_) {
+    RCLCPP_WARN(get_logger(), "Map not yet received. Skipping cloud message");
+    return;
+  }
+  this->update_extrinsics(msg);
   std::shared_ptr<Frame> current_frame = std::make_shared<Frame>();
-  current_frame->frame_ = msg->header.seq;
+  current_frame->frame_ = 0; // TODO: Verify if this is okay
   current_frame->cloud_ = new ContainerType;
   mad_icp_ros::utils::filter_pc(msg, 0.5, 30, 0, *current_frame->cloud_);
 
@@ -164,6 +220,34 @@ void Localizer::callback_cloud_in(
   current_tree->getLeafs(std::back_insert_iterator<LeafList>(current_leaves));
 
   icp_->setMoving(current_leaves);
+
+  auto initial_guess = frame_to_map_;
+  icp_->init(initial_guess);
+
+  double last_chi = std::numeric_limits<double>::max();
+  RCLCPP_INFO(get_logger(), "##### START ######");
+  for (size_t it = 0; it < max_icp_its_; ++it) {
+    RCLCPP_INFO(get_logger(), "resetAdders");
+    icp_->resetAdders();
+    RCLCPP_INFO(get_logger(), "update");
+    icp_->update(map_->tree_);
+    RCLCPP_INFO(get_logger(), "updateState");
+    icp_->updateState();
+
+    // if (abs(last_chi - icp_->chi_adder_) < delta_chi_threshold_)
+    //   break;
+
+    last_chi = icp_->chi_adder_;
+    RCLCPP_INFO(get_logger(), "[It=%lu] Chi = %lf", it, last_chi);
+  }
+  RCLCPP_INFO(get_logger(), "------- STOP -------");
+
+  frame_to_map_ = icp_->X_;
+  int matched_leaves = 0;
+  for (auto *l : current_leaves) {
+    matched_leaves += 1 ? l->matched_ : 0;
+  }
+  this->publish_state(frame_to_map_, msg->header.stamp);
 }
 
 void Localizer::callback_initialpose(
@@ -186,6 +270,8 @@ void Localizer::callback_map_in(
 
   map_->tree_->getLeafs(std::back_insert_iterator<LeafList>(map_->leaves_));
   initialized_ = true;
+
+  icp_->update(map_->tree_);
 }
 } // namespace mad_icp_ros
 

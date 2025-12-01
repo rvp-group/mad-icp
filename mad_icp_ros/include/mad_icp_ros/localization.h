@@ -51,6 +51,7 @@ protected:
 
   bool publish_tf_{false};
   bool publish_pose_{false};
+  bool publish_odom_{false};
   bool use_tf_for_extrinsics_{false};
 
   // mad-icp
