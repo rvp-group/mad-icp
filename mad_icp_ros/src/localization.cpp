@@ -10,13 +10,17 @@
 #include <limits>
 #include <memory>
 #include <nav_msgs/msg/detail/odometry__struct.hpp>
+#include <rclcpp/duration.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <rmw/types.h>
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
+#include <tools/lie_algebra.h>
 #include <tools/mad_tree.h>
+#include <tools/utils.h>
 #include <vector>
+#include <visualization_msgs/msg/detail/marker_array__struct.hpp>
 
 namespace mad_icp_ros {
 
@@ -64,6 +68,7 @@ void convert_pointcloud2_xyz_to_eigen(
 Localizer::Localizer(const rclcpp::NodeOptions &options)
     : Node("mad_icp_localizer", options) {
   init_params();
+
   reset();
 
   init_publishers();
@@ -72,8 +77,11 @@ Localizer::Localizer(const rclcpp::NodeOptions &options)
 
 void Localizer::reset() {
   icp_ = std::make_unique<MADicp>(b_max_, rho_ker_, b_ratio_, num_threads_);
+  // icp_ = std::make_unique<MADicp>(0.4, rho_ker_, b_ratio_, num_threads_);
   frame_to_map_.setIdentity();
   initialized_ = false;
+
+  velocity_estimator_ = std::make_shared<VelEstimator>(sensor_hz_);
 }
 
 Eigen::Matrix4d parse_isometry(std::vector<double> mat_vec) {
@@ -109,6 +117,8 @@ void Localizer::init_params() {
   publish_tf_ = this->declare_parameter("publish_tf", true);
   publish_pose_ = this->declare_parameter("publish_pose", true);
   publish_odom_ = this->declare_parameter("publish_odom", true);
+  trajectory_buffer_size_ =
+      this->declare_parameter("trajectory_buffer_size", 50);
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
 
@@ -140,6 +150,12 @@ void Localizer::init_publishers() {
       this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
           "pose", 10);
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+  auto qos_map = rclcpp::QoS(rclcpp::KeepLast(1))
+                     .reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE)
+                     .durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+  kdtree_leafs_pub_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>(
+          "vis_map_kdtree", qos_map);
 }
 void Localizer::initialize(const sensor_msgs::msg::PointCloud2::SharedPtr) {}
 void Localizer::compute(const sensor_msgs::msg::PointCloud2::SharedPtr) {}
@@ -209,7 +225,8 @@ void Localizer::callback_cloud_in(
   std::shared_ptr<Frame> current_frame = std::make_shared<Frame>();
   current_frame->frame_ = 0; // TODO: Verify if this is okay
   current_frame->cloud_ = new ContainerType;
-  mad_icp_ros::utils::filter_pc(msg, 0.5, 30, 0, *current_frame->cloud_);
+  mad_icp_ros::utils::filter_pc(msg, min_range_, max_range_, 0,
+                                *current_frame->cloud_);
 
   auto current_tree = std::make_shared<MADtree>(
       current_frame->cloud_, current_frame->cloud_->begin(),
@@ -221,32 +238,35 @@ void Localizer::callback_cloud_in(
 
   icp_->setMoving(current_leaves);
 
-  auto initial_guess = frame_to_map_;
+  // Integrate velocity estimates
+  this->estimate_velocity();
+  auto dx = velocity_current_ * 1. / sensor_hz_;
+  RCLCPP_INFO(get_logger(), "dx=[%lf %lf %lf %lf %lf %lf]", dx(0), dx(1), dx(2),
+              dx(3), dx(4), dx(5));
+  Eigen::Isometry3d dX;
+  const auto dR = expMapSO3(dx.tail(3));
+  dX.setIdentity();
+  dX.linear() = dR;
+  dX.translation() = dx.head(3);
+  auto initial_guess = frame_to_map_ * dX;
+
   icp_->init(initial_guess);
 
   double last_chi = std::numeric_limits<double>::max();
-  RCLCPP_INFO(get_logger(), "##### START ######");
   for (size_t it = 0; it < max_icp_its_; ++it) {
-    RCLCPP_INFO(get_logger(), "resetAdders");
     icp_->resetAdders();
-    RCLCPP_INFO(get_logger(), "update");
     icp_->update(map_->tree_);
-    RCLCPP_INFO(get_logger(), "updateState");
     icp_->updateState();
-
-    // if (abs(last_chi - icp_->chi_adder_) < delta_chi_threshold_)
-    //   break;
-
     last_chi = icp_->chi_adder_;
-    RCLCPP_INFO(get_logger(), "[It=%lu] Chi = %lf", it, last_chi);
+    RCLCPP_DEBUG(get_logger(), "[It=%lu] Chi = %lf", it, last_chi);
   }
-  RCLCPP_INFO(get_logger(), "------- STOP -------");
 
   frame_to_map_ = icp_->X_;
   int matched_leaves = 0;
   for (auto *l : current_leaves) {
     matched_leaves += 1 ? l->matched_ : 0;
   }
+  this->update_trajectory(frame_to_map_);
   this->publish_state(frame_to_map_, msg->header.stamp);
 }
 
@@ -267,11 +287,91 @@ void Localizer::callback_map_in(
   map_->tree_ =
       new MADtree(map_->cloud_, map_->cloud_->begin(), map_->cloud_->end(),
                   b_max_, b_min_, 0, max_parallel_levels_, nullptr, nullptr);
+  // map_->tree_ =
+  //     new MADtree(map_->cloud_, map_->cloud_->begin(), map_->cloud_->end(),
+  //                 0.03, 0.03, 0, max_parallel_levels_, nullptr, nullptr);
+  // map_->tree_ =
+  //     new MADtree(map_->cloud_, map_->cloud_->begin(), map_->cloud_->end(),
+  //     0.4,
+  //                 0.2, 0, max_parallel_levels_, nullptr, nullptr);
 
   map_->tree_->getLeafs(std::back_insert_iterator<LeafList>(map_->leaves_));
   initialized_ = true;
 
-  icp_->update(map_->tree_);
+  // Publish kdtree
+  publish_map_kdtree();
+}
+
+void Localizer::update_trajectory(const Eigen::Isometry3d &pose) {
+
+  if (trajectory_buffer_.size() >= trajectory_buffer_size_) {
+    trajectory_buffer_.pop_front();
+  }
+  trajectory_buffer_.push_back(pose);
+}
+void Localizer::estimate_velocity() {
+  velocity_estimator_->init(velocity_current_);
+  // Take a window of frames
+  // for now 10 (TODO verify if more is better)
+  if (trajectory_buffer_.size() < TRAJECTORY_INTERPOLATION_NUM_POSES) {
+    RCLCPP_WARN(get_logger(),
+                "Not enough poses for velocity estimation. Skipping.");
+    return;
+  }
+
+  std::vector<Eigen::Isometry3d> odom_window;
+  odom_window.reserve(TRAJECTORY_INTERPOLATION_NUM_POSES);
+  for (int i = std::max(0, int(trajectory_buffer_.size()) -
+                               TRAJECTORY_INTERPOLATION_NUM_POSES);
+       i < trajectory_buffer_.size(); ++i)
+    odom_window.push_back(trajectory_buffer_.at(i));
+
+  velocity_estimator_->setOdometry(odom_window);
+  velocity_estimator_->oneRound();
+  velocity_current_ = velocity_estimator_->X_;
+}
+
+void Localizer::publish_map_kdtree() {
+  visualization_msgs::msg::MarkerArray msg;
+  std::vector<MADtree *> leaves = map_->leaves_;
+  size_t marker_id = 0;
+  for (const auto &l : leaves) {
+    // create one arrow marker
+    visualization_msgs::msg::Marker marker;
+    const auto origin = l->mean_;
+    const auto normal = l->eigenvectors_.col(0);
+    const auto arrow_tip = origin + normal * 0.2;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.05;
+    marker.scale.z = 0.03;
+    marker.points.resize(2);
+    marker.points[0].x = origin.x();
+    marker.points[0].y = origin.y();
+    marker.points[0].z = origin.z();
+    marker.pose.orientation.w = 1.0;
+    marker.header.stamp = now();
+    RCLCPP_INFO(get_logger(), "MARKER ORIGIN = {%lf %lf %lf}", origin.x(),
+                origin.y(), origin.z());
+    marker.points[1].x = arrow_tip.x();
+    marker.points[1].y = arrow_tip.y();
+    marker.points[1].z = arrow_tip.z();
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0;
+    marker.type = 0;
+    marker.id = marker_id;
+    marker_id += 1;
+    marker.header.frame_id = "map";
+    marker.ns = "/kdtree";
+    marker.lifetime.nanosec = 0;
+    marker.lifetime.sec = 0;
+    msg.markers.push_back(marker);
+    if (marker_id > 200)
+      break;
+  }
+  kdtree_leafs_pub_->publish(msg);
 }
 } // namespace mad_icp_ros
 

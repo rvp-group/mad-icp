@@ -1,6 +1,8 @@
 #pragma once
 #include "odometry/mad_icp.h"
 #include "tools/frame.h"
+#include <Eigen/src/Geometry/Transform.h>
+#include <deque>
 #include <geometry_msgs/msg/detail/pose_with_covariance_stamped__struct.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -13,6 +15,12 @@
 #include <tf2_ros/transform_listener.hpp>
 
 #include <Eigen/Dense>
+#include <odometry/vel_estimator.h>
+#include <tools/utils.h>
+
+#include <visualization_msgs/msg/detail/marker_array__struct.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 namespace mad_icp_ros {
 class Localizer : public rclcpp::Node {
@@ -43,6 +51,7 @@ protected:
   Eigen::Isometry3d lidar_in_base_;
   Eigen::Isometry3d frame_to_map_;
   bool initialized_{false};
+  size_t trajectory_buffer_size_{50};
 
   int num_threads_{0};
   float loop_time_;
@@ -57,6 +66,10 @@ protected:
   // mad-icp
   std::unique_ptr<MADicp> icp_;
   std::shared_ptr<Frame> map_;
+  // mad-icp-velocity-estimation
+  std::shared_ptr<VelEstimator> velocity_estimator_;
+  std::deque<Eigen::Isometry3d> trajectory_buffer_;
+  Vector6d velocity_current_ = Vector6d::Zero();
 
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
@@ -71,6 +84,9 @@ protected:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  // Publisher-debug-info
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
+      kdtree_leafs_pub_;
 
   // Helper functions
   void reset();
@@ -83,6 +99,13 @@ protected:
   void update_extrinsics(const sensor_msgs::msg::PointCloud2::SharedPtr);
   void publish_state(const Eigen::Isometry3d &, const rclcpp::Time &);
 
+  // Handle deque for trajectory buffering
+  void update_trajectory(const Eigen::Isometry3d &);
+
+  // Computes the expected velocity (Vector6d) from the buffered trajectory
+  static constexpr int TRAJECTORY_INTERPOLATION_NUM_POSES = 10;
+  void estimate_velocity();
+
   // Initialize the global MAD tree with the given points
   void initialize_map(const std::vector<Eigen::Vector3d> &);
 
@@ -91,5 +114,8 @@ protected:
   void callback_initialpose(
       const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr);
   void callback_map_in(const sensor_msgs::msg::PointCloud2::SharedPtr);
+
+  // Debug info
+  void publish_map_kdtree();
 };
 } // namespace mad_icp_ros

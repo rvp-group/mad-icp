@@ -30,6 +30,8 @@ find_package(pcl_ros REQUIRED)
 find_package(mad_icp REQUIRED)
 find_package(mad_icp_ros_interfaces REQUIRED)
 
+find_package(visualization_msgs REQUIRED)
+
 # add a library
 add_library(mad_icp_ros_components SHARED 
   src/map_server.cpp
@@ -50,6 +52,7 @@ ament_target_dependencies(mad_icp_ros_components
   mad_icp_ros_interfaces
   pcl_conversions
   pcl_ros
+  visualization_msgs
 )
 
 target_link_libraries(mad_icp_ros_components

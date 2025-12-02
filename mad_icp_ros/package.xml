@@ -26,6 +26,7 @@
   <depend>pcl_ros</depend>
 
   <depend>mad_icp_ros_interfaces</depend>
+  <depend>visualization_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
