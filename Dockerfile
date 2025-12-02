@@ -1,5 +1,8 @@
 ARG FROM_IMAGE=ros:humble-ros-base
 ARG OVERLAY_WS=/opt/ros/overlay_ws
+ARG USERNAME=dev
+ARG USER_UID=1000
+ARG USER_GID=1000
 
 # Common runtime/build deps
 FROM $FROM_IMAGE AS base
@@ -30,7 +33,12 @@ WORKDIR $OVERLAY_WS
 
 # ----- DEV STAGE -------
 
-FROM base as dev
+FROM base AS dev
+
+ARG OVERLAY_WS
+ARG USERNAME
+ARG USER_UID
+ARG USER_GID
 
 RUN apt-get update && apt-get install -y \
   ros-humble-rviz2 \
@@ -41,6 +49,11 @@ RUN apt-get update && apt-get install -y \
   fzf \
   ripgrep \
   fd-find \
+  xclip \
+  nodejs \
+  npm \
+  build-essential \
+  unzip \
   xz-utils && rm -rf /var/lib/apt/lists/* 
 
 # Install Neovim 0.11.5 (Currently installing x86-64)
@@ -48,14 +61,39 @@ RUN curl -L https://github.com/neovim/neovim/releases/download/v0.11.5/nvim-linu
   -o /tmp/nvim.tar.gz && \
   tar xzf /tmp/nvim.tar.gz -C /opt && \
   ln -s /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim && \
-  rm /tmp/nvim.tar.gz
+  rm /tmp/nvim.tar.gz 
+
+# Create user matching host UID/GID
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+  && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+  && mkdir -p ${OVERLAY_WS} \
+  && chown -R ${USERNAME}:${USERNAME} ${OVERLAY_WS} \
+  && mkdir -p /home/${USERNAME}/.local/state /home/${USERNAME}/.local/share \
+  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local 
+
+
+USER ${USERNAME}
+
+# Clone custom dotfiles for neovim setup
+# Cache repo head version to avoid caching in case of changes
+ADD https://api.github.com/repos/EmanueleGiacomini/.dotfiles/git/refs/heads/main version.json
+RUN git clone https://github.com/EmanueleGiacomini/.dotfiles.git /home/${USERNAME}/dotfiles && \
+  mkdir /home/${USERNAME}/.config/ && \
+  ln -s /home/${USERNAME}/dotfiles/.config/nvim /home/${USERNAME}/.config/nvim
+
+COPY --chown=${USERNAME}:${USERNAME} scripts/update_lazyvim.lua /tmp/
+
+RUN /usr/local/bin/nvim --headless -c "luafile /tmp/update_lazyvim.lua" -c "qall" \ 
+  && rm /tmp/update_lazyvim.lua
 
 RUN mkdir -p ${OVERLAY_WS}/src ${OVERLAY_WS}/build ${OVERLAY_WS}/install ${OVERLAY_WS}/log 
+
 WORKDIR ${OVERLAY_WS}
+
 
 # ----- BUILD STAGE ------
 
-FROM base as builder
+FROM base AS builder
 
 # Repo with multiple packages goes under src/mad-icp
 COPY . src/mad-icp

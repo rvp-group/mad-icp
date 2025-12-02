@@ -23,6 +23,8 @@ echo "Building docker image: ${IMAGE_NAME} (target: ${DOCKER_TARGET})"
 docker build \
   -t "${IMAGE_NAME}" \
   --target "${DOCKER_TARGET}" \
+  --build-arg USER_UID="$(id -u)" \
+  --build-arg USER_GID="$(id -g)" \
   -f Dockerfile .
 
 echo "Done."

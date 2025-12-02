@@ -16,8 +16,8 @@ services:
       - ./log:/opt/ros/overlay_ws/log:rw
 
       # Neovim configuration
-      - ~/.config/nvim:/root/.config/nvim
-      - ~/.local/share/nvim:/root/.local/share/nvim
+      # - ~/.config/nvim:/root/.config/nvim
+      # - ~/.local/share/nvim:/root/.local/share/nvim
     tty: true
     stdin_open: true
     privileged: true
