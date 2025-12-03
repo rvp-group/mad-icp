@@ -3,6 +3,14 @@ services:
     image: mad-icp-dev
     container_name: mad-icp-dev
     network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count : 1
+              capabilities: [gpu]
+    runtime: nvidia
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
@@ -18,6 +26,8 @@ services:
       # Neovim configuration
       # - ~/.config/nvim:/root/.config/nvim
       # - ~/.local/share/nvim:/root/.local/share/nvim
+      #
+      # GUI applications
     tty: true
     stdin_open: true
     privileged: true

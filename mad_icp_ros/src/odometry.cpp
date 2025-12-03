@@ -1,10 +1,15 @@
 #include "mad_icp_ros/odometry.h"
 
+#include <message_filters/subscriber.h>
+#include <rmw/qos_profiles.h>
+#include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <sys/time.h>
 
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_ros/create_timer_interface.hpp>
+#include <tf2_ros/create_timer_ros.hpp>
 
 #include "mad_icp_ros_utils/utils.h"
 
@@ -222,13 +227,7 @@ void mad_icp_ros::Odometry::pointcloud_callback(
   // pc_stamp_ = msg->header.stamp;
 
   RCLCPP_INFO(get_logger(), "scan %f", time_to_double(pc_stamp_));
-
-  if (!initialized_) {
-    initialize(msg);
-  } else {
-    compute(msg);
-  }
-
+  // Update baselink_T_lidar
   Eigen::Isometry3d bTl = lidar_in_base_;
   if (use_tf_for_extrinsics_) {
     // Update bTl (baselink_T_lidar) from tf tree
@@ -237,30 +236,24 @@ void mad_icp_ros::Odometry::pointcloud_callback(
     const auto base_id = base_frame_.c_str();
 
     try {
-      // t = tf_buffer_->lookupTransform(child_id, base_id, msg->header.stamp);
-      t = tf_buffer_->lookupTransform(child_id, base_id, tf2::TimePointZero);
+      t = tf_buffer_->lookupTransform(child_id, base_id, msg->header.stamp);
       bTl = tf2::transformToEigen(t);
-      pc_stamp_ =
-          t.header
-              .stamp; // override timestamp for publishing due to sync issues.
     } catch (const tf2::TransformException &ex) {
       RCLCPP_WARN(get_logger(), "Could not transform %s to %s: %s", child_id,
                   base_id, ex.what());
     }
   }
 
-  // std::cerr
-  //     << (lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse()).matrix()
-  //     << "\n";
-  // publish_odom_tf(lidar_in_base_ * frame_to_map_ * lidar_in_base_.inverse(),
-  //                 pc_stamp_);
-  publish_odom_tf(bTl * frame_to_map_ * bTl.inverse(), pc_stamp_);
-  // publish_odom_tf(
-  //     bTl * frame_to_map_ * bTl.inverse(),
-  //     t.header.stamp); // Publish with t.header.stamp for sync issues
+  if (!initialized_) {
+    initialize(msg);
+  } else {
+    compute(msg);
+  }
 
-  RCLCPP_INFO(get_logger(), "took %f",
-              time_to_double(now()) - time_to_double(time_now));
+  publish_odom_tf(frame_to_map_ * bTl.inverse(), pc_stamp_);
+
+  RCLCPP_DEBUG(get_logger(), "took %f",
+               time_to_double(now()) - time_to_double(time_now));
 }
 
 void mad_icp_ros::Odometry::odom_callback(
@@ -285,20 +278,43 @@ void mad_icp_ros::Odometry::odom_callback(
 }
 
 void mad_icp_ros::Odometry::init_subscribers() {
+  // Initialize tf2 listener
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
                  .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
                  .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
-  pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "points", qos,
-      std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
+  if (use_tf_for_extrinsics_) {
+    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+        get_node_base_interface(), get_node_timers_interface());
+    tf_buffer_->setCreateTimerInterface(timer_interface);
+    RCLCPP_INFO(get_logger(), "Setting up tf2 MessageFilter for "
+                              "synchronous cloud-tf processing.");
+    // Enable pc_sub_tfsync rather than pc_sub_
+    pc_sub_tfsync_.reset(
+        new message_filters::Subscriber<sensor_msgs::msg::PointCloud2>(
+            this, "points", rmw_qos_profile_sensor_data));
+
+    RCLCPP_INFO(get_logger(), "creating filter");
+    pc_tfsync_filter_.reset(
+        new tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>(
+            *pc_sub_tfsync_, *tf_buffer_, base_frame_, 10,
+            this->get_node_logging_interface(),
+            this->get_node_clock_interface()));
+
+    RCLCPP_INFO(get_logger(), "registering callback");
+    pc_tfsync_filter_->registerCallback(&Odometry::pointcloud_callback, this);
+
+  } else {
+    RCLCPP_INFO(get_logger(), "Setting up default cloud subscription.");
+    pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+        "points", qos,
+        std::bind(&Odometry::pointcloud_callback, this, std::placeholders::_1));
+  }
   if (use_wheels_)
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "odom_init", qos,
         std::bind(&Odometry::odom_callback, this, std::placeholders::_1));
-
-  // Initialize tf2 listener
-  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
-  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
 void mad_icp_ros::Odometry::init_publishers() {

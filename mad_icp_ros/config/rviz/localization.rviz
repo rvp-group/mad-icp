@@ -9,7 +9,7 @@ Panels:
         - /PointCloud21/Topic1
         - /PointCloud22
       Splitter Ratio: 0.5
-    Tree Height: 720
+    Tree Height: 365
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -34,7 +34,7 @@ Panels:
     Property Tree Widget:
       Expanded: ~
       Splitter Ratio: 0.5
-    Tree Height: 159
+    Tree Height: 373
 Visualization Manager:
   Class: ""
   Displays:
@@ -125,7 +125,7 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 158
+      Max Intensity: 161
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: PointCloud2
@@ -199,11 +199,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 68.22392272949219
+      Scale: 55.63911056518555
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 2.1178765296936035
-      Y: -0.0961868017911911
+      X: 2.833164691925049
+      Y: -0.40914949774742126
     Saved: ~
 Window Geometry:
   Displays:

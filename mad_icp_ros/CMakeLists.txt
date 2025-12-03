@@ -53,6 +53,7 @@ ament_target_dependencies(mad_icp_ros_components
   pcl_conversions
   pcl_ros
   visualization_msgs
+  message_filters
 )
 
 target_link_libraries(mad_icp_ros_components

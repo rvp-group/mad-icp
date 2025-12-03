@@ -1,4 +1,6 @@
+#include <message_filters/subscriber.hpp>
 #include <tf2_ros/buffer.h>
+#include <tf2_ros/message_filter.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -10,8 +12,8 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include "mad_icp_ros/odom_cbuf.h"
-#include "mad_icp_ros_interfaces/msg/frame.hpp"
 #include "odometry/mad_icp.h"
+#include <mad_icp_ros_interfaces/msg/frame.hpp>
 
 namespace mad_icp_ros {
 
@@ -77,6 +79,11 @@ protected:
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
   void init_subscribers();
   //
+  // TF synchronized cloud subscription
+  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>>
+      pc_sub_tfsync_;
+  std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>
+      pc_tfsync_filter_;
 
   // ROS2 Publishers:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
