@@ -10,7 +10,9 @@
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
+#include <message_filters/subscriber.hpp>
 #include <tf2_ros/buffer.hpp>
+#include <tf2_ros/message_filter.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
 #include <tf2_ros/transform_listener.hpp>
 
@@ -84,6 +86,11 @@ protected:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  // TF synchronized cloud subscription
+  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>>
+      pc_sub_tfsync_;
+  std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>
+      pc_tfsync_filter_;
   // Publisher-debug-info
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
       kdtree_leafs_pub_;

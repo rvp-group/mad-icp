@@ -15,6 +15,8 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <rmw/types.h>
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_ros/create_timer_ros.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
 #include <tools/lie_algebra.h>
 #include <tools/mad_tree.h>
@@ -125,12 +127,37 @@ void Localizer::init_params() {
   loop_time_ = (1. / sensor_hz_) * 1000;
 }
 void Localizer::init_subscribers() {
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
                  .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
                  .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
-  cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "cloud_in", qos,
-      std::bind(&Localizer::callback_cloud_in, this, std::placeholders::_1));
+  if (use_tf_for_extrinsics_) {
+    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+        get_node_base_interface(), get_node_timers_interface());
+    tf_buffer_->setCreateTimerInterface(timer_interface);
+    RCLCPP_INFO(get_logger(), "Setting up tf2 MessageFilter for "
+                              "synchronous cloud-tf processing.");
+    // Enable pc_sub_tfsync rather than pc_sub_
+    pc_sub_tfsync_.reset(
+        new message_filters::Subscriber<sensor_msgs::msg::PointCloud2>(
+            this, "cloud_in", rmw_qos_profile_sensor_data));
+
+    RCLCPP_INFO(get_logger(), "creating filter");
+    pc_tfsync_filter_.reset(
+        new tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>(
+            *pc_sub_tfsync_, *tf_buffer_, base_frame_, 10,
+            this->get_node_logging_interface(),
+            this->get_node_clock_interface()));
+
+    RCLCPP_INFO(get_logger(), "registering callback");
+    pc_tfsync_filter_->registerCallback(&Localizer::callback_cloud_in, this);
+  } else {
+    cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+        "cloud_in", qos,
+        std::bind(&Localizer::callback_cloud_in, this, std::placeholders::_1));
+  }
+
   iguess_sub_ =
       this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
           "initialpose", qos,
@@ -161,17 +188,30 @@ void Localizer::initialize(const sensor_msgs::msg::PointCloud2::SharedPtr) {}
 void Localizer::compute(const sensor_msgs::msg::PointCloud2::SharedPtr) {}
 void Localizer::update_extrinsics(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-  Eigen::Isometry3d bTl = lidar_in_base_;
+  // Eigen::Isometry3d bTl = lidar_in_base_;
   if (use_tf_for_extrinsics_) {
     // update bTl from tf tree
     geometry_msgs::msg::TransformStamped t;
     const auto child_id = msg->header.frame_id.c_str();
+    const auto base_id = base_frame_.c_str();
+    try {
+      t = tf_buffer_->lookupTransform(child_id, base_id, msg->header.stamp);
+      lidar_in_base_ = tf2::transformToEigen(t);
+    } catch (const tf2::TransformException &ex) {
+      RCLCPP_WARN(get_logger(), "Could not transform %s to %s: %s", child_id,
+                  base_id, ex.what());
+    }
   }
 }
 void Localizer::publish_state(const Eigen::Isometry3d &pose,
                               const rclcpp::Time &time) {
-  const auto t = pose.translation();
-  const auto q = Eigen::Quaterniond(pose.linear()).normalized();
+  const auto map_T_lidar = pose;
+  const auto bTl = lidar_in_base_;
+  const auto map_T_base = map_T_lidar * bTl.inverse();
+  // const auto t = pose.translation();
+  // const auto q = Eigen::Quaterniond(pose.linear()).normalized();
+  const auto t = map_T_base.translation();
+  const auto q = Eigen::Quaterniond(map_T_base.linear()).normalized();
 
   geometry_msgs::msg::PoseWithCovariance pose_msg;
   pose_msg.pose.position.x = t.x();
@@ -299,7 +339,7 @@ void Localizer::callback_map_in(
   initialized_ = true;
 
   // Publish kdtree
-  publish_map_kdtree();
+  // publish_map_kdtree();
 }
 
 void Localizer::update_trajectory(const Eigen::Isometry3d &pose) {
