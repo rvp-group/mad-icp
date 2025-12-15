@@ -81,6 +81,7 @@ protected:
   Eigen::Isometry3d keyframe_to_map_;
 
   Vector6d current_velocity_;
+  Vector6d previous_velocity_;  // For trapezoidal integration
 
   std::deque<Frame*> keyframes_;
   std::deque<Frame*> frames_;

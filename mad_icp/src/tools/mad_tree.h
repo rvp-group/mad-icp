@@ -100,7 +100,6 @@ struct MADtree {
   Eigen::Vector3d bbox_;
   Eigen::Matrix3d eigenvectors_;
 
-  MADtree() {}; // make this public to serialize/deserialize
-
 protected:
+  MADtree(){};
 };

@@ -42,7 +42,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Python bindings
 find_package(pybind11)
 
-if(NOT pybind11_FOUND)
+if(NOT DEFINED pybind11_FOUND)
     message(CHECK_START "Fetching pybind11")
     list(APPEND CMAKE_MESSAGE_INDENT "  ")
     include(FetchContent)

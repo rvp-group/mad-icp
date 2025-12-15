@@ -55,6 +55,7 @@ Pipeline::Pipeline(double sensor_hz,
   frame_to_map_.setIdentity();
   keyframe_to_map_.setIdentity();
   current_velocity_.setZero();
+  previous_velocity_.setZero();  // Initialize for trapezoidal integration
   seq_            = 0;
   seq_keyframe_   = 0;
   is_initialized_ = false;
@@ -145,7 +146,11 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   current_leaves_.clear();
   current_tree_->getLeafs(std::back_insert_iterator<LeafList>(current_leaves_));
 
-  Vector6d dx = current_velocity_ * 1. / sensor_hz_;
+  // Trapezoidal integration: use average of current and previous velocity
+  // This provides second-order accuracy compared to Euler (first-order)
+  const double dt = 1. / sensor_hz_;
+  Vector6d avg_velocity = 0.5 * (current_velocity_ + previous_velocity_);
+  Vector6d dx = avg_velocity * dt;
   Eigen::Isometry3d dX;
   const Eigen::Matrix3d dR = expMapSO3(dx.tail(3));
   dX.setIdentity();
@@ -225,6 +230,9 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   vel_estimator_.setOdometry(odom_window);
 
   vel_estimator_.oneRound();
+  
+  // Store previous velocity before updating for trapezoidal integration
+  previous_velocity_ = current_velocity_;
   current_velocity_ = vel_estimator_.X_;
 
   Frame* current_frame(new Frame);

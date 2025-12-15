@@ -104,17 +104,35 @@ void MADtree::build(const ContainerTypePtr vec,
     split(begin, end, [&](const Eigen::Vector3d& p) -> bool { return (p - mean_).dot(_split_plane_normal) < double(0); });
 
   if (level >= max_parallel_level) {
-    left_ = new MADtree(vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    left_ =
+      new MADtree(vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
 
-    right_ = new MADtree(vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    right_ =
+      new MADtree(vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
   } else {
-    std::future<MADtree*> l =
-      std::async(MADtree::makeSubtree, vec, begin, middle, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
+    std::future<MADtree*> l = std::async(MADtree::makeSubtree,
+                                         vec,
+                                         begin,
+                                         middle,
+                                         b_max,
+                                         b_min,
+                                         level + 1,
+                                         max_parallel_level,
+                                         this,
+                                         plane_predecessor);
 
-    std::future<MADtree*> r =
-      std::async(MADtree::makeSubtree, vec, middle, end, b_max, b_min, level + 1, max_parallel_level, this, plane_predecessor);
-    left_  = l.get();
-    right_ = r.get();
+    std::future<MADtree*> r = std::async(MADtree::makeSubtree,
+                                         vec,
+                                         middle,
+                                         end,
+                                         b_max,
+                                         b_min,
+                                         level + 1,
+                                         max_parallel_level,
+                                         this,
+                                         plane_predecessor);
+    left_                   = l.get();
+    right_                  = r.get();
   }
 }
 

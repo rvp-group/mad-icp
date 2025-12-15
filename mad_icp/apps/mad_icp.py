@@ -60,6 +60,11 @@ class InputDataInterface(str, Enum):
     # Can insert additional conversion formats
 
 
+class OutputFormat(str, Enum):
+    kitti = "kitti"  # 12 values per line (3x4 matrix row-major)
+    tum = "tum"      # timestamp tx ty tz qx qy qz qw
+
+
 InputDataInterface_lut = {
     InputDataInterface.kitti: KittiReader,
     InputDataInterface.ros1: Ros1Reader,
@@ -83,7 +88,9 @@ def main(data_path: Annotated[
         realtime: Annotated[
         bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
         noviz: Annotated[
-        bool, typer.Option(help="if true visualizer on", show_default=True)] = False) -> None:
+        bool, typer.Option(help="if true visualizer on", show_default=True)] = False,
+        output_format: Annotated[
+        OutputFormat, typer.Option(help="output trajectory format: kitti (3x4 matrix) or tum (timestamp tx ty tz qx qy qz qw)", show_default=True)] = OutputFormat.kitti) -> None:
     if not data_path.exists():
         console.print(f"[red] {data_path} does not exist!")
         sys.exit(-1)
@@ -188,7 +195,8 @@ def main(data_path: Annotated[
 
             lidar_to_world = pipeline.currentPose()
             write_transformed_pose(
-                estimate_file, lidar_to_world, lidar_to_base)
+                estimate_file, lidar_to_world, lidar_to_base, 
+                timestamp=ts, output_format=output_format.value)
 
             if not noviz:
                 t_start = datetime.now()
