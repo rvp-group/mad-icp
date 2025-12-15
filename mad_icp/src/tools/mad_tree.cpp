@@ -152,7 +152,10 @@ const MADtree* MADtree::bestMatchingLeafFast(const Eigen::Vector3d& query) const
   const MADtree* node = this;
   while (node->left_ || node->right_) {
     const Eigen::Vector3d& _split_plane_normal = node->eigenvectors_.col(2);
-    node = ((query - node->mean_).dot(_split_plane_normal) < double(0)) ? node->left_ : node->right_;
+    bool go_left = (query - node->mean_).dot(_split_plane_normal) < double(0);
+    const MADtree* next = go_left ? node->left_ : node->right_;
+    if (!next) next = go_left ? node->right_ : node->left_;  // Fallback to other child
+    node = next;
   }
 
   return node;

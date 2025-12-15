@@ -64,7 +64,8 @@ class McapReader:
         self.max_range = max_range
 
         mcap_file_path = next(data_dir.glob("*.mcap"), None)
-        assert os.path.isfile(mcap_file_path), "mcap dataloader expects an existing MCAP file"
+        if not mcap_file_path or not os.path.isfile(mcap_file_path):
+            raise FileNotFoundError(f"mcap dataloader expects an existing MCAP file in {data_dir}")
         mcap_file = str(mcap_file_path)
 
         self.bag = make_reader(open(mcap_file, "rb"))

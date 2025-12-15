@@ -34,9 +34,9 @@
 class MADtreeWrapper {
 public:
   void build(ContainerType vec, const double b_max, const double b_min, const int max_parallel_level) {
-    ContainerType* vec_add = &vec;
+    stored_vec_ = std::move(vec);
     mad_tree_.reset(
-      new MADtree(vec_add, vec_add->begin(), vec_add->end(), b_max, b_min, 0, max_parallel_level, nullptr, nullptr));
+      new MADtree(&stored_vec_, stored_vec_.begin(), stored_vec_.end(), b_max, b_min, 0, max_parallel_level, nullptr, nullptr));
   }
 
   std::pair<Eigen::Vector3d, Eigen::Vector3d> search(const Eigen::Vector3d& query) {
@@ -68,4 +68,5 @@ public:
 
 protected:
   std::unique_ptr<MADtree> mad_tree_ = nullptr;
+  ContainerType stored_vec_;
 };

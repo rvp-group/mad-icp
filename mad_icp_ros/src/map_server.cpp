@@ -89,6 +89,7 @@ void MapServer::load_map() {
       throw std::runtime_error("PLY load error");
     }
   } else if (map_format_ == "bin") {
+    cloud = loadBINFile(map_filename_);
   } else {
     RCLCPP_ERROR(get_logger(), "Unsupported map format: %s",
                  map_format_.c_str());

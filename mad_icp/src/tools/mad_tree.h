@@ -100,6 +100,6 @@ struct MADtree {
   Eigen::Vector3d bbox_;
   Eigen::Matrix3d eigenvectors_;
 
-protected:
-  MADtree(){};
+  // Default constructor for deserialization
+  MADtree() : num_points_(0), matched_(false), left_(nullptr), right_(nullptr), parent_(nullptr) {};
 };

@@ -45,7 +45,7 @@ void MADicp::resetAdders() {
   b_adder_.setZero();
   chi_adder_ = 0;
 
-  for (size_t i = 0; i < num_threads_; ++i) {
+  for (int i = 0; i < num_threads_; ++i) {
     H_adders_[i].setZero();
     b_adders_[i].setZero();
     chi_adders_[i] = 0;
@@ -104,12 +104,12 @@ void MADicp::update(const MADtree* fixed_tree) {
 
     H_adders_[thread_id] += scale * J.transpose() * J;
     b_adders_[thread_id] += scale * J.transpose() * e;
-    chi_adders_[thread_id] = chi;
+    chi_adders_[thread_id] += chi;
   }
 }
 
 void MADicp::updateState() {
-  for (size_t i = 0; i < num_threads_; ++i) {
+  for (int i = 0; i < num_threads_; ++i) {
     H_adder_ += H_adders_[i];
     b_adder_ += b_adders_[i];
     chi_adder_ += chi_adders_[i];

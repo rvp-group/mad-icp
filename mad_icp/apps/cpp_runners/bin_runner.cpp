@@ -138,6 +138,11 @@ int main(int argc, char* argv[]) {
     // load bin point cloud
     FILE* stream;
     stream = fopen(filename.c_str(), "rb");
+    if (!stream) {
+      std::cerr << "Failed to open file: " << filename << std::endl;
+      free(data);
+      continue;
+    }
     num    = fread(data, sizeof(float), num, stream) / 4;
     for (int32_t i = 0; i < num; i++) {
       Eigen::Vector3f point(*px, *py, *pz);

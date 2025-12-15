@@ -57,8 +57,8 @@ class KittiReader:
         self.cdtype = np.float32
         self.vertical_angle_offset = np.radians(0.205)
         if (self.data_dir / ".dtype.pkl").exists():
-            f = open(self.data_dir / ".dtype.pkl", "rb")
-            self.cdtype = pickle.load(f)
+            with open(self.data_dir / ".dtype.pkl", "rb") as f:
+                self.cdtype = pickle.load(f)
 
     def __len__(self):
         return len(self.file_names)

@@ -120,8 +120,8 @@ def main(data_path: Annotated[
 
     console.print("[green] Parsing dataset configuration")
     if dataset_config.is_file():
-        data_config_file = open(dataset_config, 'r')
-        data_cf = yaml.safe_load(data_config_file)
+        with open(dataset_config, 'r') as data_config_file:
+            data_cf = yaml.safe_load(data_config_file)
     else:
         dataset_config_str = str(dataset_config)
         if dataset_config_str in DatasetConfiguration_lut:
@@ -143,8 +143,8 @@ def main(data_path: Annotated[
 
     console.print("[green] Parsing mad-icp parameters")
     if mad_icp_params.is_file():
-        mad_icp_params_file = open(mad_icp_params, 'r')
-        mad_icp_cf = yaml.safe_load(mad_icp_params_file)
+        with open(mad_icp_params, 'r') as mad_icp_params_file:
+            mad_icp_cf = yaml.safe_load(mad_icp_params_file)
     else:
         mad_icp_params_str = str(mad_icp_params)
         if mad_icp_params_str in MADConfiguration_lut:

@@ -28,6 +28,7 @@ namespace mad_icp_ros {
 class Localizer : public rclcpp::Node {
 public:
   Localizer(const rclcpp::NodeOptions &options);
+  virtual ~Localizer();
 
 protected:
   // mad_icp odometry parameters. They are explained in the

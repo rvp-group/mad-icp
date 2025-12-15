@@ -22,7 +22,7 @@ def generate_launch_description():
     )
 
     mad_icp_config_filepath = os.path.join(
-        package_dir, "config", "mad_icp", "unitree_g1.yaml"
+        package_dir, "config", "mad_icp", "jackal.yaml"
     )
 
     # rviz_node = Node(
@@ -40,7 +40,7 @@ def generate_launch_description():
         output="screen",
         parameters=[mad_icp_config_filepath],
         remappings=[
-            ("/points", "/ouster/points"),
+            ("/points", "/j100_0819/lidar/top/points"),
             ("/odom_init", "/j100_0819/platform/odom"),
         ],
     )

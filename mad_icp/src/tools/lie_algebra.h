@@ -39,15 +39,15 @@ inline Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
 inline Eigen::Matrix3d expMapSO3(const Eigen::Vector3d& omega) {
   Eigen::Matrix3d R;
   const double theta_square = omega.dot(omega);
+  if (theta_square < 1e-8) {
+    R = Eigen::Matrix3d::Identity() + skew(omega);
+    return R;
+  }
   const double theta        = sqrt(theta_square);
   const Eigen::Matrix3d W   = skew(omega);
   const Eigen::Matrix3d K   = W / theta;
-  if (theta_square < 1e-8) {
-    R = Eigen::Matrix3d::Identity() + W;
-  } else {
-    const double one_minus_cos = 2.0 * sin(theta / 2.0) * sin(theta / 2.0);
-    R                          = Eigen::Matrix3d::Identity() + sin(theta) * K + one_minus_cos * K * K;
-  }
+  const double one_minus_cos = 2.0 * sin(theta / 2.0) * sin(theta / 2.0);
+  R = Eigen::Matrix3d::Identity() + sin(theta) * K + one_minus_cos * K * K;
   return R;
 }
 

@@ -77,6 +77,15 @@ Localizer::Localizer(const rclcpp::NodeOptions &options)
   init_subscribers();
 }
 
+Localizer::~Localizer() {
+  if (map_) {
+    delete map_->tree_;
+    delete map_->cloud_;
+    map_->tree_ = nullptr;
+    map_->cloud_ = nullptr;
+  }
+}
+
 void Localizer::reset() {
   icp_ = std::make_unique<MADicp>(b_max_, rho_ker_, b_ratio_, num_threads_);
   // icp_ = std::make_unique<MADicp>(0.4, rho_ker_, b_ratio_, num_threads_);
@@ -308,6 +317,10 @@ void Localizer::callback_cloud_in(
   }
   this->update_trajectory(frame_to_map_);
   this->publish_state(frame_to_map_, msg->header.stamp);
+
+  // Cleanup current_frame resources
+  delete current_frame->cloud_;
+  current_frame->cloud_ = nullptr;
 }
 
 void Localizer::callback_initialpose(

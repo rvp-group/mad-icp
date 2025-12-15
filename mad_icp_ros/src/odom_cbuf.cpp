@@ -16,14 +16,14 @@ void mad_icp_ros::OdomCircularBuffer::insert(const ItemT& item) {
 size_t mad_icp_ros::OdomCircularBuffer::find(TimeT t) const {
   std::pair<ItemT, ItemT> out;
   if (!full_ && end_ - start_ < 2) {
-    return std::numeric_limits<size_t>::quiet_NaN();
+    return std::numeric_limits<size_t>::max();
   }
 
   // I could do binary search but
   // I just start from the end and go backwards
   size_t i = decr(end_);
   if (t >= data_[i].first || t <= data_[start_].first) {
-    return std::numeric_limits<size_t>::quiet_NaN();
+    return std::numeric_limits<size_t>::max();
   }
   while (i != start_) {
     // assume that t is less than the last element, I have to check the previous
@@ -35,7 +35,7 @@ size_t mad_icp_ros::OdomCircularBuffer::find(TimeT t) const {
     }
   }
   // not found
-  return std::numeric_limits<size_t>::quiet_NaN();
+  return std::numeric_limits<size_t>::max();
 }
 
 mad_icp_ros::OdomCircularBuffer::PoseT mad_icp_ros::OdomCircularBuffer::interp(
@@ -65,7 +65,7 @@ mad_icp_ros::OdomCircularBuffer::PoseT mad_icp_ros::OdomCircularBuffer::interp(
 mad_icp_ros::OdomCircularBuffer::ItemT mad_icp_ros::OdomCircularBuffer::query(
     TimeT t) const {
   size_t closest = find(t);
-  if (std::isnan(closest)) {
+  if (closest == std::numeric_limits<size_t>::max()) {
     return invalid_item_;
   }
 

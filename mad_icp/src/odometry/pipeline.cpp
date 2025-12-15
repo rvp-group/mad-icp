@@ -69,10 +69,14 @@ Pipeline::Pipeline(double sensor_hz,
 Pipeline::~Pipeline() {
   while (!frames_.empty()) {
     delete frames_.front()->tree_;
+    delete frames_.front()->cloud_;
+    delete frames_.front();
     frames_.pop_front();
   }
   while (!keyframes_.empty()) {
     delete keyframes_.front()->tree_;
+    delete keyframes_.front()->cloud_;
+    delete keyframes_.front();
     keyframes_.pop_front();
   }
 }
@@ -195,7 +199,7 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
 
     if (abs(last_chi - icp_.chi_adder_) < delta_chi_threshold_) {
       std::cerr << "mad_icp stopped at iteration " << icp_iteration
-                << " due to minimal anal leakage : " << abs(last_chi - icp_.chi_adder_) << "\n";
+                << " due to minimal chi change: " << abs(last_chi - icp_.chi_adder_) << "\n";
       break;
     }
 
@@ -239,7 +243,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   current_frame->frame_        = seq_;
   current_frame->frame_to_map_ = frame_to_map_;
   current_frame->stamp_        = curr_stamp;
-  current_frame->weight_       = icp_.H_adder_.inverse().determinant();
+  double det = icp_.H_adder_.determinant();
+  current_frame->weight_ = (det > 1e-10) ? (1.0 / det) : std::numeric_limits<double>::max();
   current_tree_->applyTransform(frame_to_map_.linear(), frame_to_map_.translation());
   current_frame->tree_   = current_tree_;
   current_frame->leaves_ = current_leaves_;
@@ -247,6 +252,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   frames_.push_back(current_frame);
   if (frames_.size() > FRAME_WINDOW) {
     delete frames_.front()->tree_;
+    delete frames_.front()->cloud_;
+    delete frames_.front();
     frames_.pop_front();
   }
 
@@ -265,6 +272,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     while (!frames_.empty() && frames_.front()->frame_ <= new_seq) {
       if (frames_.front()->frame_ < new_seq) {
         delete frames_.front()->tree_;
+        delete frames_.front()->cloud_;
+        delete frames_.front();
       }
       frames_.pop_front();
     }
@@ -272,6 +281,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     keyframes_.push_back(best_frame);
     if (keyframes_.size() > num_keyframes_) {
       delete keyframes_.front()->tree_;
+      delete keyframes_.front()->cloud_;
+      delete keyframes_.front();
       keyframes_.pop_front();
     }
 
