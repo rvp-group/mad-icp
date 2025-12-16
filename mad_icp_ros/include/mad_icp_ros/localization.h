@@ -1,7 +1,14 @@
 #pragma once
-#include "odometry/mad_icp.h"
-#include "tools/frame.h"
-#include <Eigen/src/Geometry/Transform.h>
+#include <message_filters/subscriber.h>
+#include <odometry/vel_estimator.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/message_filter.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <tools/utils.h>
+
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <deque>
 #include <geometry_msgs/msg/detail/pose_with_covariance_stamped__struct.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -9,28 +16,20 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-
-#include <message_filters/subscriber.hpp>
-#include <tf2_ros/buffer.hpp>
-#include <tf2_ros/message_filter.hpp>
-#include <tf2_ros/transform_broadcaster.hpp>
-#include <tf2_ros/transform_listener.hpp>
-
-#include <Eigen/Dense>
-#include <odometry/vel_estimator.h>
-#include <tools/utils.h>
-
 #include <visualization_msgs/msg/detail/marker_array__struct.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+#include "odometry/mad_icp.h"
+#include "tools/frame.h"
+
 namespace mad_icp_ros {
 class Localizer : public rclcpp::Node {
-public:
+ public:
   Localizer(const rclcpp::NodeOptions &options);
   virtual ~Localizer();
 
-protected:
+ protected:
   // mad_icp odometry parameters. They are explained in the
   // config/mad_icp/jackal.yaml.
   // Overriding these parameters at runtime has no effect
@@ -126,4 +125,4 @@ protected:
   // Debug info
   void publish_map_kdtree();
 };
-} // namespace mad_icp_ros
+}  // namespace mad_icp_ros

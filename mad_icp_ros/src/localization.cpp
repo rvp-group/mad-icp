@@ -1,7 +1,14 @@
 #include "mad_icp_ros/localization.h"
-#include "mad_icp_ros_utils/utils.h"
+
+#include <rmw/types.h>
+#include <tf2_ros/create_timer_ros.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tools/lie_algebra.h>
+#include <tools/mad_tree.h>
+#include <tools/utils.h>
+
 #include <Eigen/Dense>
-#include <eigen3/Eigen/src/Geometry/Transform.h>
+#include <Eigen/Geometry>
 #include <geometry_msgs/msg/detail/pose_with_covariance_stamped__struct.hpp>
 #include <geometry_msgs/msg/detail/transform__struct.hpp>
 #include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
@@ -13,16 +20,12 @@
 #include <rclcpp/duration.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <rmw/types.h>
 #include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
-#include <tf2_ros/create_timer_ros.hpp>
-#include <tf2_ros/transform_broadcaster.hpp>
-#include <tools/lie_algebra.h>
-#include <tools/mad_tree.h>
-#include <tools/utils.h>
 #include <vector>
 #include <visualization_msgs/msg/detail/marker_array__struct.hpp>
+
+#include "mad_icp_ros_utils/utils.h"
 
 namespace mad_icp_ros {
 
@@ -41,12 +44,9 @@ void convert_pointcloud2_xyz_to_eigen(
   int offset_z = -1;
 
   for (const auto &field : msg->fields) {
-    if (field.name == "x")
-      offset_x = field.offset;
-    if (field.name == "y")
-      offset_y = field.offset;
-    if (field.name == "z")
-      offset_z = field.offset;
+    if (field.name == "x") offset_x = field.offset;
+    if (field.name == "y") offset_y = field.offset;
+    if (field.name == "z") offset_z = field.offset;
   }
 
   if (offset_x < 0 || offset_y < 0 || offset_z < 0) {
@@ -60,8 +60,7 @@ void convert_pointcloud2_xyz_to_eigen(
 
     Eigen::Vector3d point(x, y, z);
 
-    if (!std::isfinite(x + y + z))
-      continue;
+    if (!std::isfinite(x + y + z)) continue;
 
     dst.emplace_back(point);
   }
@@ -145,8 +144,9 @@ void Localizer::init_subscribers() {
     auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
         get_node_base_interface(), get_node_timers_interface());
     tf_buffer_->setCreateTimerInterface(timer_interface);
-    RCLCPP_INFO(get_logger(), "Setting up tf2 MessageFilter for "
-                              "synchronous cloud-tf processing.");
+    RCLCPP_INFO(get_logger(),
+                "Setting up tf2 MessageFilter for "
+                "synchronous cloud-tf processing.");
     // Enable pc_sub_tfsync rather than pc_sub_
     pc_sub_tfsync_.reset(
         new message_filters::Subscriber<sensor_msgs::msg::PointCloud2>(
@@ -232,7 +232,6 @@ void Localizer::publish_state(const Eigen::Isometry3d &pose,
   pose_msg.pose.orientation.w = q.w();
 
   if (publish_pose_) {
-
     geometry_msgs::msg::PoseWithCovarianceStamped pose_stamped;
     pose_stamped.header.stamp = time;
     pose_stamped.header.frame_id = base_frame_;
@@ -272,7 +271,7 @@ void Localizer::callback_cloud_in(
   }
   this->update_extrinsics(msg);
   std::shared_ptr<Frame> current_frame = std::make_shared<Frame>();
-  current_frame->frame_ = 0; // TODO: Verify if this is okay
+  current_frame->frame_ = 0;  // TODO: Verify if this is okay
   current_frame->cloud_ = new ContainerType;
   mad_icp_ros::utils::filter_pc(msg, min_range_, max_range_, 0,
                                 *current_frame->cloud_);
@@ -328,8 +327,7 @@ void Localizer::callback_initialpose(
 
 void Localizer::callback_map_in(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-  if (initialized_)
-    return;
+  if (initialized_) return;
   RCLCPP_INFO(get_logger(), "Received map");
   map_ = std::make_shared<Frame>();
   map_->frame_ = 0;
@@ -356,7 +354,6 @@ void Localizer::callback_map_in(
 }
 
 void Localizer::update_trajectory(const Eigen::Isometry3d &pose) {
-
   if (trajectory_buffer_.size() >= trajectory_buffer_size_) {
     trajectory_buffer_.pop_front();
   }
@@ -421,11 +418,10 @@ void Localizer::publish_map_kdtree() {
     marker.lifetime.nanosec = 0;
     marker.lifetime.sec = 0;
     msg.markers.push_back(marker);
-    if (marker_id > 200)
-      break;
+    if (marker_id > 200) break;
   }
   kdtree_leafs_pub_->publish(msg);
 }
-} // namespace mad_icp_ros
+}  // namespace mad_icp_ros
 
 RCLCPP_COMPONENTS_REGISTER_NODE(mad_icp_ros::Localizer)

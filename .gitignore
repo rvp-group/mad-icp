@@ -5,3 +5,4 @@ log/
 *.db3*
 *.pcd*
 metadata.yaml
+__pycache__/

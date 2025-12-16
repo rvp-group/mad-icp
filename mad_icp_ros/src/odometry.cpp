@@ -2,14 +2,14 @@
 
 #include <message_filters/subscriber.h>
 #include <rmw/qos_profiles.h>
-#include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <sys/time.h>
+#include <tf2_ros/create_timer_interface.h>
+#include <tf2_ros/create_timer_ros.h>
 
 #include <rclcpp_components/register_node_macro.hpp>
+#include <sensor_msgs/msg/detail/point_cloud2__struct.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
-#include <tf2_ros/create_timer_interface.hpp>
-#include <tf2_ros/create_timer_ros.hpp>
 
 #include "mad_icp_ros_utils/utils.h"
 
@@ -288,8 +288,9 @@ void mad_icp_ros::Odometry::init_subscribers() {
     auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
         get_node_base_interface(), get_node_timers_interface());
     tf_buffer_->setCreateTimerInterface(timer_interface);
-    RCLCPP_INFO(get_logger(), "Setting up tf2 MessageFilter for "
-                              "synchronous cloud-tf processing.");
+    RCLCPP_INFO(get_logger(),
+                "Setting up tf2 MessageFilter for "
+                "synchronous cloud-tf processing.");
     // Enable pc_sub_tfsync rather than pc_sub_
     pc_sub_tfsync_.reset(
         new message_filters::Subscriber<sensor_msgs::msg::PointCloud2>(

@@ -32,12 +32,27 @@ find_package(mad_icp_ros_interfaces REQUIRED)
 
 find_package(visualization_msgs REQUIRED)
 
+# nanoflann for k-d tree (header-only) - fetch without building
+include(FetchContent)
+FetchContent_Declare(
+  nanoflann
+  GIT_REPOSITORY https://github.com/jlblancoc/nanoflann.git
+  GIT_TAG v1.5.0
+)
+FetchContent_GetProperties(nanoflann)
+if(NOT nanoflann_POPULATED)
+  FetchContent_Populate(nanoflann)
+endif()
+
 # add a library
-add_library(mad_icp_ros_components SHARED 
+add_library(mad_icp_ros_components SHARED
   src/map_server.cpp
   src/localization.cpp
   src/odometry.cpp
   src/odom_cbuf.cpp
+  src/binary_tree_io.cpp
+  src/pose_index.cpp
+  src/pose_graph_localizer.cpp
 )
 
 # dependencies
@@ -68,7 +83,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # headers
 target_include_directories(mad_icp_ros_components PUBLIC
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-	"$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
+	"$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+	${nanoflann_SOURCE_DIR}/include)
 
 rclcpp_components_register_node(
   mad_icp_ros_components
@@ -86,6 +102,12 @@ rclcpp_components_register_node(
   mad_icp_ros_components
   PLUGIN "mad_icp_ros::MapServer"
   EXECUTABLE mad_icp_map_server
+)
+
+rclcpp_components_register_node(
+  mad_icp_ros_components
+  PLUGIN "mad_icp_ros::PoseGraphLocalizer"
+  EXECUTABLE mad_icp_pose_graph_localizer
 )
 
 # install rules

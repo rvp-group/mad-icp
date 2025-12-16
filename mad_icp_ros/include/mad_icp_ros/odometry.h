@@ -1,27 +1,27 @@
-#include <message_filters/subscriber.hpp>
+#include <message_filters/subscriber.h>
 #include <tf2_ros/buffer.h>
-#include <tf2_ros/message_filter.hpp>
+#include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
 #include <Eigen/Dense>
 #include <deque>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <mad_icp_ros_interfaces/msg/frame.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include "mad_icp_ros/odom_cbuf.h"
 #include "odometry/mad_icp.h"
-#include <mad_icp_ros_interfaces/msg/frame.hpp>
 
 namespace mad_icp_ros {
 
 class Odometry : public rclcpp::Node {
-public:
+ public:
   Odometry(const rclcpp::NodeOptions &options);
 
-protected:
+ protected:
   // mad_icp odometry parameters. They are explained in the
   // config/mad_icp/jackal.yaml.
   // Overriding these parameters at runtime has no effect
@@ -59,15 +59,15 @@ protected:
   Eigen::Isometry3d frame_to_map_;
   OdomCircularBuffer odom_buffer_;
   // Eigen::Isometry3d keyframe_to_map_;
-  ContainerType pc_container_; // Intermediate container used to filter points
+  ContainerType pc_container_;  // Intermediate container used to filter points
   rclcpp::Time pc_stamp_;
   rclcpp::Time odom_stamp_;
   bool initialized_;
-  size_t seq_; // progressively increasing counter for frames
+  size_t seq_;  // progressively increasing counter for frames
   bool map_updated_;
-  std::deque<Frame *> keyframes_; // each scan is registered to these scans
+  std::deque<Frame *> keyframes_;  // each scan is registered to these scans
   std::deque<Frame *>
-      frames_; // store recent frames to choose the best keyframe
+      frames_;  // store recent frames to choose the best keyframe
   bool realtime_{false};
   void reset();
   //
@@ -110,4 +110,4 @@ protected:
   int max_parallel_levels_;
   float loop_time_;
 };
-} // namespace mad_icp_ros
+}  // namespace mad_icp_ros
