@@ -63,6 +63,27 @@ class Ros2Reader:
             raise Exception("You have to specify a topic")
 
         print("Reading the following topic: ", topic)
+
+        # Check if topic exists in the bag
+        if topic not in self.bag.topics:
+            # Find all PointCloud2 topics
+            pointcloud_topics = [
+                t for t, info in self.bag.topics.items()
+                if 'PointCloud2' in info.msgtype
+            ]
+            error_msg = f"Topic '{topic}' not found in the bag.\n"
+            if pointcloud_topics:
+                error_msg += "Available PointCloud2 topics:\n"
+                for t in pointcloud_topics:
+                    info = self.bag.topics[t]
+                    error_msg += f"  - {t} ({info.msgcount} messages)\n"
+            else:
+                error_msg += "No PointCloud2 topics found in the bag.\n"
+                error_msg += "Available topics:\n"
+                for t, info in self.bag.topics.items():
+                    error_msg += f"  - {t} [{info.msgtype}] ({info.msgcount} messages)\n"
+            raise KeyError(error_msg)
+
         connection = [x for x in self.bag.connections if x.topic == topic]
         self.msgs = self.bag.messages(connections=connection)
 

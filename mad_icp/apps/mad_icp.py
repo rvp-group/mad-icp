@@ -174,44 +174,48 @@ def main(data_path: Annotated[
     estimate_file = open(estimate_file_name, 'a')
     estimate_file.truncate(0)
 
-    with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
-        t_start = datetime.now()
-        for ts, points in track(reader, description="processing..."):
-
-            print("Loading frame #", pipeline.currentID())
-
-            points = VectorEigen3d(points)
-            t_end = datetime.now()
-            t_delta = t_end - t_start
-            print("Time for reading points [ms]: ",
-                  t_delta.total_seconds() * 1000)
-
+    try:
+        with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
             t_start = datetime.now()
-            pipeline.compute(ts, points)
-            t_end = datetime.now()
-            t_delta = t_end - t_start
-            print(
-                "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+            for ts, points in track(reader, description="processing..."):
 
-            lidar_to_world = pipeline.currentPose()
-            write_transformed_pose(
-                estimate_file, lidar_to_world, lidar_to_base, 
-                timestamp=ts, output_format=output_format.value)
+                print("Loading frame #", pipeline.currentID())
 
-            if viz:
-                t_start = datetime.now()
-                if pipeline.isMapUpdated():
-                    visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
-                    ), lidar_to_world, pipeline.keyframePose())
-                else:
-                    visualizer.update(pipeline.currentLeaves(),
-                                      None, lidar_to_world, None)
+                points = VectorEigen3d(points)
                 t_end = datetime.now()
                 t_delta = t_end - t_start
-                print("Time for visualization [ms]:",
-                      t_delta.total_seconds() * 1000, "\n")
+                print("Time for reading points [ms]: ",
+                      t_delta.total_seconds() * 1000)
 
-            t_start = datetime.now()
+                t_start = datetime.now()
+                pipeline.compute(ts, points)
+                t_end = datetime.now()
+                t_delta = t_end - t_start
+                print(
+                    "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+
+                lidar_to_world = pipeline.currentPose()
+                write_transformed_pose(
+                    estimate_file, lidar_to_world, lidar_to_base,
+                    timestamp=ts, output_format=output_format.value)
+
+                if viz:
+                    t_start = datetime.now()
+                    if pipeline.isMapUpdated():
+                        visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
+                        ), lidar_to_world, pipeline.keyframePose())
+                    else:
+                        visualizer.update(pipeline.currentLeaves(),
+                                          None, lidar_to_world, None)
+                    t_end = datetime.now()
+                    t_delta = t_end - t_start
+                    print("Time for visualization [ms]:",
+                          t_delta.total_seconds() * 1000, "\n")
+
+                t_start = datetime.now()
+    except KeyError as e:
+        console.print(f"[red]{e.args[0]}")
+        sys.exit(-1)
 
     estimate_file.close()
 
