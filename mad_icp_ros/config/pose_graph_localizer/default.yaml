@@ -43,3 +43,5 @@ pose_graph_localizer:
     publish_tf: true  # Publish map->odom TF
     publish_odom: true  # Publish nav_msgs/Odometry
     publish_pose: true  # Publish geometry_msgs/PoseWithCovarianceStamped
+    publish_odom_base_identity: true  # Publish odom->base_link identity when no wheel odom
+    publish_debug_clouds: false  # Publish local_map and current_cloud for RViz debug

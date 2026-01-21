@@ -30,6 +30,7 @@ dependencies = [
   "open3d",
   "matplotlib",
   "typer==0.12.3",
+  "click>=8.0.0,<8.2.0",
   "natsort==8.4.0",
   "rich==13.7.1",
 ]

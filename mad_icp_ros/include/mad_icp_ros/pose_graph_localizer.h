@@ -92,6 +92,8 @@ class PoseGraphLocalizer : public rclcpp::Node {
   // TF/Publishing
   void publishState(const Eigen::Isometry3d& map_T_base,
                     const rclcpp::Time& stamp);
+  void publishDebugClouds(const ContainerType& current_cloud,
+                          const rclcpp::Time& stamp);
 
   // Velocity estimation
   void updateTrajectory(const Eigen::Isometry3d& pose);
@@ -120,6 +122,8 @@ class PoseGraphLocalizer : public rclcpp::Node {
   bool publish_tf_{true};
   bool publish_odom_{true};
   bool publish_pose_{true};
+  bool publish_odom_base_identity_{true};
+  bool publish_debug_clouds_{false};
   size_t trajectory_buffer_size_{50};
 
   // State
@@ -164,6 +168,8 @@ class PoseGraphLocalizer : public rclcpp::Node {
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
       pose_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_cloud_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

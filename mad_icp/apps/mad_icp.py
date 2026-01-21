@@ -86,9 +86,9 @@ def main(data_path: Annotated[
         num_keyframes: Annotated[
         int, typer.Option(help="max number of kf kept in the local map (suggest as num threads)", show_default=True)] = 4,
         realtime: Annotated[
-        bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
-        noviz: Annotated[
-        bool, typer.Option(help="if true visualizer on", show_default=True)] = False,
+        bool, typer.Option("--realtime", help="if true anytime realtime", show_default=True)] = False,
+        viz: Annotated[
+        bool, typer.Option("--viz/--noviz", help="enable/disable visualizer", show_default=True)] = True,
         output_format: Annotated[
         OutputFormat, typer.Option(help="output trajectory format: kitti (3x4 matrix) or tum (timestamp tx ty tz qx qy qz qw)", show_default=True)] = OutputFormat.kitti) -> None:
     if not data_path.exists():
@@ -100,7 +100,7 @@ def main(data_path: Annotated[
         estimate_path.mkdir(parents=True, exist_ok=True)
 
     visualizer = None
-    if not noviz:
+    if viz:
         visualizer = Visualizer()
 
     reader_type = InputDataInterface.kitti
@@ -198,7 +198,7 @@ def main(data_path: Annotated[
                 estimate_file, lidar_to_world, lidar_to_base, 
                 timestamp=ts, output_format=output_format.value)
 
-            if not noviz:
+            if viz:
                 t_start = datetime.now()
                 if pipeline.isMapUpdated():
                     visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(

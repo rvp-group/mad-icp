@@ -34,7 +34,9 @@
 #include <tf2_ros/create_timer_ros.h>
 #include <tools/lie_algebra.h>
 
+#include <chrono>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 namespace mad_icp_ros {
@@ -82,6 +84,9 @@ void PoseGraphLocalizer::initParams() {
   publish_tf_ = this->declare_parameter("publish_tf", true);
   publish_odom_ = this->declare_parameter("publish_odom", true);
   publish_pose_ = this->declare_parameter("publish_pose", true);
+  publish_odom_base_identity_ =
+      this->declare_parameter("publish_odom_base_identity", true);
+  publish_debug_clouds_ = this->declare_parameter("publish_debug_clouds", false);
   trajectory_buffer_size_ = this->declare_parameter("trajectory_buffer_size", 50);
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
@@ -155,6 +160,14 @@ void PoseGraphLocalizer::initPublishers() {
   pose_pub_ =
       this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("pose", 10);
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
+  // Debug cloud publishers
+  if (publish_debug_clouds_) {
+    local_map_pub_ =
+        this->create_publisher<sensor_msgs::msg::PointCloud2>("local_map", 10);
+    current_cloud_pub_ =
+        this->create_publisher<sensor_msgs::msg::PointCloud2>("current_cloud", 10);
+  }
 }
 
 void PoseGraphLocalizer::loadMap() {
@@ -206,6 +219,9 @@ void PoseGraphLocalizer::cloudCallback(
     return;
   }
 
+  // Start timing
+  auto start_time = std::chrono::high_resolution_clock::now();
+
   // Build MADtree for current scan
   auto current_tree = std::make_shared<MADtree>(
       &cloud, cloud.begin(), cloud.end(), b_max_, b_min_, 0, max_parallel_levels_,
@@ -231,6 +247,7 @@ void PoseGraphLocalizer::cloudCallback(
   icp_->init(initial_guess);
 
   // ICP iterations
+  size_t num_iterations = 0;
   double last_chi = std::numeric_limits<double>::max();
   for (size_t it = 0; it < max_icp_its_; ++it) {
     icp_->resetAdders();
@@ -241,11 +258,10 @@ void PoseGraphLocalizer::cloudCallback(
     }
 
     icp_->updateState();
+    num_iterations = it + 1;
 
     double chi_change = std::abs(last_chi - icp_->chi_adder_);
     if (chi_change < delta_chi_threshold_) {
-      RCLCPP_DEBUG(get_logger(), "ICP converged at iteration %zu (chi=%f)", it,
-                   icp_->chi_adder_);
       break;
     }
     last_chi = icp_->chi_adder_;
@@ -255,11 +271,23 @@ void PoseGraphLocalizer::cloudCallback(
   Eigen::Isometry3d map_T_lidar = icp_->X_;
   map_T_base_ = map_T_lidar * lidar_in_base_.inverse();
 
+  // Log computation time
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto elapsed_ms =
+      std::chrono::duration<double, std::milli>(end_time - start_time).count();
+  RCLCPP_INFO(get_logger(), "ICP: %.2f ms (%zu iters, chi=%.4f)", elapsed_ms,
+              num_iterations, icp_->chi_adder_);
+
   // Update trajectory buffer for velocity estimation
   updateTrajectory(map_T_base_);
 
   // Publish localization result
   publishState(map_T_base_, msg->header.stamp);
+
+  // Publish debug clouds if enabled
+  if (publish_debug_clouds_) {
+    publishDebugClouds(cloud, msg->header.stamp);
+  }
 }
 
 void PoseGraphLocalizer::initialPoseCallback(
@@ -337,6 +365,19 @@ void PoseGraphLocalizer::updateActiveKeyframes(const Eigen::Vector3d& position) 
   if (new_ids == active_pose_ids_) {
     return;  // No change needed
   }
+
+  // Log keyframe switch
+  auto ids_to_string = [](const std::unordered_set<uint32_t>& ids) {
+    std::string s;
+    for (auto id : ids) {
+      if (!s.empty()) s += ", ";
+      s += std::to_string(id);
+    }
+    return s.empty() ? "none" : s;
+  };
+  RCLCPP_INFO(get_logger(), "Keyframe switch: [%s] -> [%s]",
+              ids_to_string(active_pose_ids_).c_str(),
+              ids_to_string(new_ids).c_str());
 
   // Update active keyframes
   active_keyframes_.clear();
@@ -446,6 +487,22 @@ void PoseGraphLocalizer::publishState(const Eigen::Isometry3d& map_T_base,
     tf_msg.transform.rotation.z = q_odom.z();
     tf_msg.transform.rotation.w = q_odom.w();
     tf_broadcaster_->sendTransform(tf_msg);
+
+    // When no wheel odom, also publish odom→base_link as identity
+    if (!have_wheel_odom_ && publish_odom_base_identity_) {
+      geometry_msgs::msg::TransformStamped odom_base_tf;
+      odom_base_tf.header.stamp = stamp;
+      odom_base_tf.header.frame_id = odom_frame_;
+      odom_base_tf.child_frame_id = base_frame_;
+      odom_base_tf.transform.translation.x = 0.0;
+      odom_base_tf.transform.translation.y = 0.0;
+      odom_base_tf.transform.translation.z = 0.0;
+      odom_base_tf.transform.rotation.x = 0.0;
+      odom_base_tf.transform.rotation.y = 0.0;
+      odom_base_tf.transform.rotation.z = 0.0;
+      odom_base_tf.transform.rotation.w = 1.0;
+      tf_broadcaster_->sendTransform(odom_base_tf);
+    }
   }
 }
 
@@ -476,6 +533,112 @@ void PoseGraphLocalizer::estimateVelocity() {
   vel_estimator_->setOdometry(odom_window);
   vel_estimator_->oneRound();
   velocity_current_ = vel_estimator_->X_;
+}
+
+void PoseGraphLocalizer::publishDebugClouds(const ContainerType& current_cloud,
+                                             const rclcpp::Time& stamp) {
+  // Publish local map (points from active keyframes)
+  if (local_map_pub_ && local_map_pub_->get_subscription_count() > 0) {
+    sensor_msgs::msg::PointCloud2 local_map_msg;
+    local_map_msg.header.stamp = stamp;
+    local_map_msg.header.frame_id = map_frame_;
+
+    // Count total points from all keyframe leaves
+    size_t total_points = 0;
+    for (const auto& kf : active_keyframes_) {
+      total_points += kf.leaves.size();
+    }
+
+    // Setup PointCloud2 fields (XYZ only)
+    local_map_msg.height = 1;
+    local_map_msg.width = static_cast<uint32_t>(total_points);
+    local_map_msg.is_dense = true;
+    local_map_msg.is_bigendian = false;
+    local_map_msg.point_step = 12;  // 3 floats * 4 bytes
+    local_map_msg.row_step = local_map_msg.point_step * local_map_msg.width;
+
+    sensor_msgs::msg::PointField field_x, field_y, field_z;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+    local_map_msg.fields = {field_x, field_y, field_z};
+
+    // Fill point data
+    local_map_msg.data.resize(local_map_msg.row_step);
+    size_t offset = 0;
+    for (const auto& kf : active_keyframes_) {
+      for (const auto* leaf : kf.leaves) {
+        const Eigen::Vector3d& mean = leaf->mean_;
+        float x = static_cast<float>(mean.x());
+        float y = static_cast<float>(mean.y());
+        float z = static_cast<float>(mean.z());
+        std::memcpy(&local_map_msg.data[offset], &x, 4);
+        std::memcpy(&local_map_msg.data[offset + 4], &y, 4);
+        std::memcpy(&local_map_msg.data[offset + 8], &z, 4);
+        offset += 12;
+      }
+    }
+
+    local_map_pub_->publish(local_map_msg);
+  }
+
+  // Publish current cloud transformed to map frame
+  if (current_cloud_pub_ && current_cloud_pub_->get_subscription_count() > 0) {
+    sensor_msgs::msg::PointCloud2 current_msg;
+    current_msg.header.stamp = stamp;
+    current_msg.header.frame_id = map_frame_;
+
+    // Transform: map_T_lidar = map_T_base * lidar_in_base
+    Eigen::Isometry3d map_T_lidar = map_T_base_ * lidar_in_base_;
+
+    // Setup PointCloud2 fields
+    current_msg.height = 1;
+    current_msg.width = static_cast<uint32_t>(current_cloud.size());
+    current_msg.is_dense = true;
+    current_msg.is_bigendian = false;
+    current_msg.point_step = 12;
+    current_msg.row_step = current_msg.point_step * current_msg.width;
+
+    sensor_msgs::msg::PointField field_x, field_y, field_z;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+    current_msg.fields = {field_x, field_y, field_z};
+
+    // Transform and fill point data
+    current_msg.data.resize(current_msg.row_step);
+    size_t offset = 0;
+    for (const auto& pt : current_cloud) {
+      Eigen::Vector3d pt_map = map_T_lidar * pt;
+      float x = static_cast<float>(pt_map.x());
+      float y = static_cast<float>(pt_map.y());
+      float z = static_cast<float>(pt_map.z());
+      std::memcpy(&current_msg.data[offset], &x, 4);
+      std::memcpy(&current_msg.data[offset + 4], &y, 4);
+      std::memcpy(&current_msg.data[offset + 8], &z, 4);
+      offset += 12;
+    }
+
+    current_cloud_pub_->publish(current_msg);
+  }
 }
 
 }  // namespace mad_icp_ros

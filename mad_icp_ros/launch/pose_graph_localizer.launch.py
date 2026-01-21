@@ -60,6 +60,12 @@ def generate_launch_description():
         description="Output pose topic (geometry_msgs/PoseWithCovarianceStamped)",
     )
 
+    arg_debug_viz = DeclareLaunchArgument(
+        "debug_viz",
+        default_value="true",
+        description="Publish debug point clouds (local_map, current_cloud) for RViz",
+    )
+
     # LaunchConfigurations
     map_dir = LaunchConfiguration("map_dir")
     config = LaunchConfiguration("config")
@@ -68,6 +74,7 @@ def generate_launch_description():
     wheel_odom_topic = LaunchConfiguration("wheel_odom_topic")
     odom_topic = LaunchConfiguration("odom_topic")
     pose_topic = LaunchConfiguration("pose_topic")
+    debug_viz = LaunchConfiguration("debug_viz")
 
     # Node
     localizer_node = Node(
@@ -78,6 +85,7 @@ def generate_launch_description():
         parameters=[
             config,
             {"map_dir": map_dir},
+            {"publish_debug_clouds": debug_viz},
         ],
         remappings=[
             # Input topics
@@ -99,6 +107,7 @@ def generate_launch_description():
             arg_wheel_odom_topic,
             arg_odom_topic,
             arg_pose_topic,
+            arg_debug_viz,
             localizer_node,
         ]
     )
