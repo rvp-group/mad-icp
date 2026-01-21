@@ -90,7 +90,9 @@ def main(data_path: Annotated[
         viz: Annotated[
         bool, typer.Option("--viz/--noviz", help="enable/disable visualizer", show_default=True)] = True,
         output_format: Annotated[
-        OutputFormat, typer.Option(help="output trajectory format: kitti (3x4 matrix) or tum (timestamp tx ty tz qx qy qz qw)", show_default=True)] = OutputFormat.kitti) -> None:
+        OutputFormat, typer.Option(help="output trajectory format: kitti (3x4 matrix) or tum (timestamp tx ty tz qx qy qz qw)", show_default=True)] = OutputFormat.kitti,
+        topic: Annotated[
+        str, typer.Option(help="point cloud topic name (overrides config file)", show_default=False)] = None) -> None:
     if not data_path.exists():
         console.print(f"[red] {data_path} does not exist!")
         sys.exit(-1)
@@ -135,9 +137,9 @@ def main(data_path: Annotated[
     deskew = data_cf["deskew"]
     # apply_correction = data_cf["apply_correction"]
     apply_correction = data_cf.get("apply_correction", False)
-    topic = None
     if reader_type in [InputDataInterface.ros1, InputDataInterface.ros2, InputDataInterface.mcap]:
-        topic = data_cf["rosbag_topic"]
+        if topic is None:
+            topic = data_cf["rosbag_topic"]
     lidar_to_base = np.array(data_cf["lidar_to_base"])
 
 
