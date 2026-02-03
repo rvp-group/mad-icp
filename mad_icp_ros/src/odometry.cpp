@@ -149,6 +149,13 @@ void mad_icp_ros::Odometry::compute(
 
   frames_.push_back(current_frame);
 
+  while (frames_.size() > frame_window_) {
+    delete frames_.front()->cloud_;
+    delete frames_.front()->tree_;
+    delete frames_.front();
+    frames_.pop_front();
+  }
+
   ++seq_;
 
   int matched_leaves = 0;
@@ -174,7 +181,9 @@ void mad_icp_ros::Odometry::compute(
 
     while (!frames_.empty() && frames_.front()->frame_ <= new_seq) {
       if (frames_.front()->frame_ < new_seq) {
+        delete frames_.front()->cloud_;
         delete frames_.front()->tree_;
+        delete frames_.front();
       }
       frames_.pop_front();
     }
@@ -188,7 +197,9 @@ void mad_icp_ros::Odometry::compute(
     }
 
     if (keyframes_.size() > num_keyframes_) {
+      delete keyframes_.front()->cloud_;
       delete keyframes_.front()->tree_;
+      delete keyframes_.front();
       keyframes_.pop_front();
     }
   }
