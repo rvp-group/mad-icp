@@ -55,11 +55,12 @@ Pipeline::Pipeline(double sensor_hz,
   frame_to_map_.setIdentity();
   keyframe_to_map_.setIdentity();
   current_velocity_.setZero();
+  previous_velocity_.setZero();  // Initialize for trapezoidal integration
   seq_            = 0;
   seq_keyframe_   = 0;
   is_initialized_ = false;
   is_map_updated_ = false;
-  loop_time = (1. / sensor_hz_) * 1000;
+  loop_time       = (1. / sensor_hz_) * 1000;
 
   max_parallel_levels_ = static_cast<int>(std::log2(num_threads));
   omp_set_num_threads(num_threads);
@@ -68,10 +69,14 @@ Pipeline::Pipeline(double sensor_hz,
 Pipeline::~Pipeline() {
   while (!frames_.empty()) {
     delete frames_.front()->tree_;
+    delete frames_.front()->cloud_;
+    delete frames_.front();
     frames_.pop_front();
   }
   while (!keyframes_.empty()) {
     delete keyframes_.front()->tree_;
+    delete keyframes_.front()->cloud_;
+    delete keyframes_.front();
     keyframes_.pop_front();
   }
 }
@@ -131,6 +136,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     return;
   }
 
+  double last_chi = std::numeric_limits<double>::max();
+
   struct timeval preprocessing_start, preprocessing_end, preprocessing_delta;
   gettimeofday(&preprocessing_start, nullptr);
 
@@ -143,7 +150,11 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   current_leaves_.clear();
   current_tree_->getLeafs(std::back_insert_iterator<LeafList>(current_leaves_));
 
-  Vector6d dx = current_velocity_ * 1. / sensor_hz_;
+  // Trapezoidal integration: use average of current and previous velocity
+  // This provides second-order accuracy compared to Euler (first-order)
+  const double dt = 1. / sensor_hz_;
+  Vector6d avg_velocity = 0.5 * (current_velocity_ + previous_velocity_);
+  Vector6d dx = avg_velocity * dt;
   Eigen::Isometry3d dX;
   const Eigen::Matrix3d dR = expMapSO3(dx.tail(3));
   dX.setIdentity();
@@ -186,10 +197,19 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
 
     icp_.updateState();
 
+    if (abs(last_chi - icp_.chi_adder_) < delta_chi_threshold_) {
+      std::cerr << "mad_icp stopped at iteration " << icp_iteration
+                << " due to minimal chi change: " << abs(last_chi - icp_.chi_adder_) << "\n";
+      break;
+    }
+
     gettimeofday(&icp_end, nullptr);
     timersub(&icp_end, &icp_start, &icp_delta);
     icp_time = float(icp_delta.tv_sec) * 1000. + 1e-3 * icp_delta.tv_usec;
+
     total_icp_time += icp_time;
+
+    last_chi = icp_.chi_adder_;
   }
 
   frame_to_map_ = icp_.X_;
@@ -214,13 +234,17 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   vel_estimator_.setOdometry(odom_window);
 
   vel_estimator_.oneRound();
+  
+  // Store previous velocity before updating for trapezoidal integration
+  previous_velocity_ = current_velocity_;
   current_velocity_ = vel_estimator_.X_;
 
   Frame* current_frame(new Frame);
   current_frame->frame_        = seq_;
   current_frame->frame_to_map_ = frame_to_map_;
   current_frame->stamp_        = curr_stamp;
-  current_frame->weight_       = icp_.H_adder_.inverse().determinant();
+  double det = icp_.H_adder_.determinant();
+  current_frame->weight_ = (det > 1e-10) ? (1.0 / det) : std::numeric_limits<double>::max();
   current_tree_->applyTransform(frame_to_map_.linear(), frame_to_map_.translation());
   current_frame->tree_   = current_tree_;
   current_frame->leaves_ = current_leaves_;
@@ -228,6 +252,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   frames_.push_back(current_frame);
   if (frames_.size() > FRAME_WINDOW) {
     delete frames_.front()->tree_;
+    delete frames_.front()->cloud_;
+    delete frames_.front();
     frames_.pop_front();
   }
 
@@ -246,6 +272,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     while (!frames_.empty() && frames_.front()->frame_ <= new_seq) {
       if (frames_.front()->frame_ < new_seq) {
         delete frames_.front()->tree_;
+        delete frames_.front()->cloud_;
+        delete frames_.front();
       }
       frames_.pop_front();
     }
@@ -253,6 +281,8 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     keyframes_.push_back(best_frame);
     if (keyframes_.size() > num_keyframes_) {
       delete keyframes_.front()->tree_;
+      delete keyframes_.front()->cloud_;
+      delete keyframes_.front();
       keyframes_.pop_front();
     }
 

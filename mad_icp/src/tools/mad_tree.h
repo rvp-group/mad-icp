@@ -62,6 +62,9 @@ struct MADtree {
       delete right_;
   }
 
+  MADtree(const MADtree& other) = delete;
+  bool operator==(const MADtree& other) const;
+
   void applyTransform(const Eigen::Matrix3d& r, const Eigen::Vector3d& t);
 
   const MADtree* bestMatchingLeafFast(const Eigen::Vector3d& query) const;
@@ -97,6 +100,6 @@ struct MADtree {
   Eigen::Vector3d bbox_;
   Eigen::Matrix3d eigenvectors_;
 
-protected:
-  MADtree(){};
+  // Default constructor for deserialization
+  MADtree() : num_points_(0), matched_(false), left_(nullptr), right_(nullptr), parent_(nullptr) {};
 };

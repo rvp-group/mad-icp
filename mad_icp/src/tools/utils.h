@@ -67,7 +67,9 @@ int computeMeanAndCovariance(Eigen::Vector3d& mean, Eigen::Matrix3d& cov, const 
   mean *= (1. / k);
   cov *= (1. / k);
   cov -= mean * mean.transpose();
-  cov *= double(k) / double(k - 1);
+  if (k > 1) {
+    cov *= double(k) / double(k - 1);
+  }
 
   return k;
 }

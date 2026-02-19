@@ -66,11 +66,13 @@ public:
 
   Matrix6d H_adder_;
   Vector6d b_adder_;
+  double chi_adder_;
 
   LeafList moving_leaves_;
 
   std::vector<Matrix6d> H_adders_;
   std::vector<Vector6d> b_adders_;
+  std::vector<double> chi_adders_;
 
   double rho_ker_;
   double min_ball_;

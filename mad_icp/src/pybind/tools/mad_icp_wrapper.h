@@ -32,23 +32,24 @@
 
 class MADicpWrapper {
 public:
-  MADicpWrapper(const int num_threads) : num_threads_(num_threads_) {
+  MADicpWrapper(const int num_threads) : num_threads_(num_threads) {
     max_parallel_levels_ = static_cast<int>(std::log2(num_threads_));
     omp_set_num_threads(num_threads_);
   }
 
   void setQueryCloud(ContainerType query, const double b_max, const double b_min) {
-    ContainerType* query_ptr = &query;
+    query_cloud_ = std::move(query);
+    query_leaves_.clear();
     query_tree_.reset(
-      new MADtree(query_ptr, query_ptr->begin(), query_ptr->end(), b_max, b_min, 0, max_parallel_levels_, nullptr, nullptr));
+      new MADtree(&query_cloud_, query_cloud_.begin(), query_cloud_.end(), b_max, b_min, 0, max_parallel_levels_, nullptr, nullptr));
     query_tree_->getLeafs(std::back_insert_iterator<LeafList>(query_leaves_));
   }
 
   void setReferenceCloud(ContainerType reference, const double b_max, const double b_min) {
-    ContainerType* reference_ptr = &reference;
-    ref_b_max_                   = b_max;
+    ref_cloud_ = std::move(reference);
+    ref_b_max_ = b_max;
     ref_tree_.reset(new MADtree(
-      reference_ptr, reference_ptr->begin(), reference_ptr->end(), ref_b_max_, b_min, 0, max_parallel_levels_, nullptr, nullptr));
+      &ref_cloud_, ref_cloud_.begin(), ref_cloud_.end(), ref_b_max_, b_min, 0, max_parallel_levels_, nullptr, nullptr));
   }
 
   inline Eigen::Matrix4d compute(const Eigen::Matrix4d& T,
@@ -105,6 +106,8 @@ protected:
   std::unique_ptr<MADicp> mad_icp_     = nullptr;
   std::unique_ptr<MADtree> ref_tree_   = nullptr;
   std::unique_ptr<MADtree> query_tree_ = nullptr;
+  ContainerType query_cloud_;
+  ContainerType ref_cloud_;
   LeafList query_leaves_;
   double ref_b_max_;
   int max_parallel_levels_;

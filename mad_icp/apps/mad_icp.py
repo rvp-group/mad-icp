@@ -60,6 +60,11 @@ class InputDataInterface(str, Enum):
     # Can insert additional conversion formats
 
 
+class OutputFormat(str, Enum):
+    kitti = "kitti"  # 12 values per line (3x4 matrix row-major)
+    tum = "tum"      # timestamp tx ty tz qx qy qz qw
+
+
 InputDataInterface_lut = {
     InputDataInterface.kitti: KittiReader,
     InputDataInterface.ros1: Ros1Reader,
@@ -81,9 +86,13 @@ def main(data_path: Annotated[
         num_keyframes: Annotated[
         int, typer.Option(help="max number of kf kept in the local map (suggest as num threads)", show_default=True)] = 4,
         realtime: Annotated[
-        bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
-        noviz: Annotated[
-        bool, typer.Option(help="if true visualizer on", show_default=True)] = False) -> None:
+        bool, typer.Option("--realtime", help="if true anytime realtime", show_default=True)] = False,
+        viz: Annotated[
+        bool, typer.Option("--viz/--noviz", help="enable/disable visualizer", show_default=True)] = True,
+        output_format: Annotated[
+        OutputFormat, typer.Option(help="output trajectory format: kitti (3x4 matrix) or tum (timestamp tx ty tz qx qy qz qw)", show_default=True)] = OutputFormat.kitti,
+        topic: Annotated[
+        str, typer.Option(help="point cloud topic name (overrides config file)", show_default=False)] = None) -> None:
     if not data_path.exists():
         console.print(f"[red] {data_path} does not exist!")
         sys.exit(-1)
@@ -93,7 +102,7 @@ def main(data_path: Annotated[
         estimate_path.mkdir(parents=True, exist_ok=True)
 
     visualizer = None
-    if not noviz:
+    if viz:
         visualizer = Visualizer()
 
     reader_type = InputDataInterface.kitti
@@ -113,8 +122,8 @@ def main(data_path: Annotated[
 
     console.print("[green] Parsing dataset configuration")
     if dataset_config.is_file():
-        data_config_file = open(dataset_config, 'r')
-        data_cf = yaml.safe_load(data_config_file)
+        with open(dataset_config, 'r') as data_config_file:
+            data_cf = yaml.safe_load(data_config_file)
     else:
         dataset_config_str = str(dataset_config)
         if dataset_config_str in DatasetConfiguration_lut:
@@ -128,16 +137,16 @@ def main(data_path: Annotated[
     deskew = data_cf["deskew"]
     # apply_correction = data_cf["apply_correction"]
     apply_correction = data_cf.get("apply_correction", False)
-    topic = None
     if reader_type in [InputDataInterface.ros1, InputDataInterface.ros2, InputDataInterface.mcap]:
-        topic = data_cf["rosbag_topic"]
+        if topic is None:
+            topic = data_cf["rosbag_topic"]
     lidar_to_base = np.array(data_cf["lidar_to_base"])
 
 
     console.print("[green] Parsing mad-icp parameters")
     if mad_icp_params.is_file():
-        mad_icp_params_file = open(mad_icp_params, 'r')
-        mad_icp_cf = yaml.safe_load(mad_icp_params_file)
+        with open(mad_icp_params, 'r') as mad_icp_params_file:
+            mad_icp_cf = yaml.safe_load(mad_icp_params_file)
     else:
         mad_icp_params_str = str(mad_icp_params)
         if mad_icp_params_str in MADConfiguration_lut:
@@ -167,43 +176,48 @@ def main(data_path: Annotated[
     estimate_file = open(estimate_file_name, 'a')
     estimate_file.truncate(0)
 
-    with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
-        t_start = datetime.now()
-        for ts, points in track(reader, description="processing..."):
-
-            print("Loading frame #", pipeline.currentID())
-
-            points = VectorEigen3d(points)
-            t_end = datetime.now()
-            t_delta = t_end - t_start
-            print("Time for reading points [ms]: ",
-                  t_delta.total_seconds() * 1000)
-
+    try:
+        with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
             t_start = datetime.now()
-            pipeline.compute(ts, points)
-            t_end = datetime.now()
-            t_delta = t_end - t_start
-            print(
-                "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+            for ts, points in track(reader, description="processing..."):
 
-            lidar_to_world = pipeline.currentPose()
-            write_transformed_pose(
-                estimate_file, lidar_to_world, lidar_to_base)
+                print("Loading frame #", pipeline.currentID())
 
-            if not noviz:
-                t_start = datetime.now()
-                if pipeline.isMapUpdated():
-                    visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
-                    ), lidar_to_world, pipeline.keyframePose())
-                else:
-                    visualizer.update(pipeline.currentLeaves(),
-                                      None, lidar_to_world, None)
+                points = VectorEigen3d(points)
                 t_end = datetime.now()
                 t_delta = t_end - t_start
-                print("Time for visualization [ms]:",
-                      t_delta.total_seconds() * 1000, "\n")
+                print("Time for reading points [ms]: ",
+                      t_delta.total_seconds() * 1000)
 
-            t_start = datetime.now()
+                t_start = datetime.now()
+                pipeline.compute(ts, points)
+                t_end = datetime.now()
+                t_delta = t_end - t_start
+                print(
+                    "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+
+                lidar_to_world = pipeline.currentPose()
+                write_transformed_pose(
+                    estimate_file, lidar_to_world, lidar_to_base,
+                    timestamp=ts, output_format=output_format.value)
+
+                if viz:
+                    t_start = datetime.now()
+                    if pipeline.isMapUpdated():
+                        visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
+                        ), lidar_to_world, pipeline.keyframePose())
+                    else:
+                        visualizer.update(pipeline.currentLeaves(),
+                                          None, lidar_to_world, None)
+                    t_end = datetime.now()
+                    t_delta = t_end - t_start
+                    print("Time for visualization [ms]:",
+                          t_delta.total_seconds() * 1000, "\n")
+
+                t_start = datetime.now()
+    except KeyError as e:
+        console.print(f"[red]{e.args[0]}")
+        sys.exit(-1)
 
     estimate_file.close()
 

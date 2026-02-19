@@ -48,14 +48,17 @@ void VelEstimator::errorAndJacobian(Vector6d& e,
                                     const Eigen::Isometry3d& T_prev,
                                     const double delta_t) {
   Eigen::Isometry3d T_now_to_prev = T_prev.inverse() * T_now;
-  e.block<3, 1>(0, 0)             = delta_t * X_.block<3, 1>(0, 0) - T_now_to_prev.translation();
+  
+  // Linear error: predicted displacement vs actual displacement
+  e.block<3, 1>(0, 0) = delta_t * X_.block<3, 1>(0, 0) - T_now_to_prev.translation();
 
-  Eigen::Vector3d angles;
-  angles(0)           = atan2(-T_now_to_prev.linear()(1, 2), T_now_to_prev.linear()(2, 2));
-  angles(1)           = asin(T_now_to_prev.linear()(0, 2));
-  angles(2)           = atan2(-T_now_to_prev.linear()(0, 1), T_now_to_prev.linear()(0, 0));
+  // Angular error: use axis-angle representation (logMapSO3) instead of Euler angles
+  // This avoids gimbal lock singularities and provides a continuous error surface
+  const Eigen::Vector3d angles = logMapSO3(T_now_to_prev.linear());
   e.block<3, 1>(3, 0) = delta_t * X_.block<3, 1>(3, 0) - angles;
 
+  // Jacobian: diagonal structure since both linear and angular velocities
+  // have linear relationship with their respective errors (for local linearization)
   J = Matrix6d::Identity() * delta_t;
 }
 
@@ -83,11 +86,15 @@ void VelEstimator::oneRound() {
   b_adder_.setZero();
 
   const Eigen::Isometry3d T_now = odometry_.back();
+  const size_t n = odometry_.size();
 
-  for (size_t i = 0; i < odometry_.size() - 1; ++i) {
+  for (size_t i = 0; i < n - 1; ++i) {
     const Eigen::Isometry3d T_prev = odometry_[i];
-    const double delta_t           = (odometry_.size() - 1 - i) * ts_;
-    const double weight            = 1.f - double(odometry_.size() - 2 - i) / double(odometry_.size() - 1);
+    // Time difference from frame i to the current frame (last in window)
+    const double delta_t = (n - 1 - i) * ts_;
+    // Weight: linearly increases with frame recency
+    // Newer frames (higher i) get higher weight to prioritize recent motion
+    const double weight = double(i + 1) / double(n);
 
     update(T_now, T_prev, delta_t, weight);
   }

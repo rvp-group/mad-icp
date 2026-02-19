@@ -44,5 +44,8 @@ PYBIND11_MODULE(pymadtree, m) {
                         py11::arg("max_parallel_level") = 2)
                    .def("search", &MADtreeWrapper::search, py11::arg("query"))
                    .def("searchCloud", &MADtreeWrapper::searchCloud, py11::arg("query_cloud"))
-                   .def("searchCloudDist", &MADtreeWrapper::searchCloudDist, py11::arg("query_cloud"));
+                   .def("searchCloudDist", &MADtreeWrapper::searchCloudDist, py11::arg("query_cloud"))
+                   .def("applyTransform", &MADtreeWrapper::applyTransform, py11::arg("R"), py11::arg("t"))
+                   .def("serialize", &MADtreeWrapper::serialize, py11::arg("filepath"))
+                   .def("getNumNodes", &MADtreeWrapper::getNumNodes);
 }

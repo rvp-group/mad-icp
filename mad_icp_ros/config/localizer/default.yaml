@@ -1,0 +1,44 @@
+localizer:
+  ros__parameters:
+    # mad_icp
+    b_max : 0.2 # [m] max size of kd leaves
+    b_min : 0.1 # [m] when a node is flatten than this param, propagate normal
+    b_ratio : 0.02 # the increase factor of search radius needed in data association 
+    p_th : 0.8 # [%] ensuring an update when the curr point cloud is registered less than this param
+    rho_ker : 0.1 # huber threshold in mad-icp
+    n : 10 # the number of last poses to smooth velocity
+    max_icp_its: 15
+    delta_chi_threshold: 1e-6
+    frame_window: 10
+    num_threads : 4 # nr of threads
+    num_keyframes: 4 # nr of keyframes to which register to
+
+    # sensor
+    min_range : 1.0
+    max_range : 8.0
+    sensor_hz : 10.0
+    deskew : False
+    lidar_in_base: 
+      [1.000,  0.000,  0.000, 0.000,
+      0.000,  1.000,  0.000,  0.000,
+      0.000,  0.000,  1.000,  0.000,
+      0.000,  0.000,  0.000, 1.000]
+    intensity_thr : 0.0 # filter low intensity points
+
+    trajectory_buffer_size: 10 # How many past poses are kept for velocity estimation.
+
+
+    # Instead of using the "lidar_in_base" parameter, use tf tree to compute it.
+    # This is useful for non-rigid lidar_in_base configurations
+    # the query transform goes from msg::PointCloud2::header::frame_id to base_frame
+    use_tf_for_extrinsics: True 
+    use_wheels : false # use wheel odometry
+
+    # ROS2
+    # base_frame : "livox_frame"
+    base_frame : "base_link"
+    publish_odom: true
+    publish_tf: true
+    realtime: true
+
+    publish_frames: true

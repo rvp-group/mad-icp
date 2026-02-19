@@ -81,6 +81,7 @@ protected:
   Eigen::Isometry3d keyframe_to_map_;
 
   Vector6d current_velocity_;
+  Vector6d previous_velocity_;  // For trapezoidal integration
 
   std::deque<Frame*> keyframes_;
   std::deque<Frame*> frames_;
@@ -93,6 +94,7 @@ protected:
   bool deskew_, realtime_;
   int num_keyframes_, num_threads_, max_parallel_levels_;
   double sensor_hz_, b_max_, p_th_, b_min_;
+  double delta_chi_threshold_{1e-6};
   // end some params
 
   size_t seq_;

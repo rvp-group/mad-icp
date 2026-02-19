@@ -1,0 +1,47 @@
+pose_graph_localizer:
+  ros__parameters:
+    # Map directory (containing manifest.txt and trees/)
+    map_dir: ""
+
+    # Keyframe management
+    num_nearest_keyframes: 4  # Number of nearest keyframes to use for ICP
+    keyframe_update_rate: 1.0  # [Hz] Rate to check for new nearest keyframes
+
+    # MAD-ICP parameters
+    b_max: 0.2  # [m] Max size of MADtree leaves
+    b_min: 0.1  # [m] Normal propagation threshold
+    b_ratio: 0.02  # Search radius increase factor for data association
+    rho_ker: 0.1  # [m] Huber kernel threshold
+    max_icp_its: 15  # Maximum ICP iterations per scan
+    delta_chi_threshold: 1e-6  # ICP convergence threshold
+    num_threads: 4  # Number of parallel threads
+
+    # Sensor parameters
+    min_range: 0.5  # [m] Filter points closer than this
+    max_range: 100.0  # [m] Filter points farther than this
+    sensor_hz: 10.0  # [Hz] LiDAR scan rate
+
+    # Extrinsics (4x4 row-major homogeneous transform: lidar to base_link)
+    lidar_in_base:
+      [1.0, 0.0, 0.0, 0.0,
+       0.0, 1.0, 0.0, 0.0,
+       0.0, 0.0, 1.0, 0.0,
+       0.0, 0.0, 0.0, 1.0]
+
+    # Use TF tree for extrinsics instead of lidar_in_base parameter
+    use_tf_for_extrinsics: false
+
+    # Velocity estimation
+    trajectory_buffer_size: 50  # Number of past poses for velocity estimation
+
+    # Frame IDs
+    base_frame: "base_link"
+    odom_frame: "odom"
+    map_frame: "map"
+
+    # Publishing options
+    publish_tf: true  # Publish map->odom TF
+    publish_odom: true  # Publish nav_msgs/Odometry
+    publish_pose: true  # Publish geometry_msgs/PoseWithCovarianceStamped
+    publish_odom_base_identity: true  # Publish odom->base_link identity when no wheel odom
+    publish_debug_clouds: false  # Publish local_map and current_cloud for RViz debug

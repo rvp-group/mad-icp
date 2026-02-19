@@ -28,8 +28,20 @@
 
 #pragma once
 
+// Number of azimuth chunks for point cloud deskewing
 static constexpr int CHUNKS             = 1024;
+
+// Sliding window size for velocity estimation smoothing
 static constexpr int SMOOTHING_T        = 10;
-static constexpr double E_THRESHOLD_VEL = 0.3162;
+
+// Robust loss threshold for velocity estimation (Huber-like loss)
+// Value is sqrt(0.1), where 0.1 balances translation (m) and rotation (rad) errors.
+// Errors larger than this threshold use linear loss (robust to outliers).
+// Tuned empirically for typical LiDAR odometry scenarios at ~10 Hz sensor rate.
+static constexpr double E_THRESHOLD_VEL = 0.3162;  // sqrt(0.1)
+
+// Maximum ICP iterations per frame
 static constexpr int MAX_ICP_ITS        = 15;
+
+// Local frame buffer window size
 static constexpr int FRAME_WINDOW       = 10;
