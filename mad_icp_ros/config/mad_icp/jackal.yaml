@@ -34,4 +34,4 @@ mad_icp_odometry:
     publish_tf: true
     realtime: true
 
-    publish_frames: true
+    publish_frames: false
