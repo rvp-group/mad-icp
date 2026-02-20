@@ -25,15 +25,15 @@ classifiers = [
 ]
 dependencies = [
     "PyYAML==6.0.1",
-    "numpy>=1.26.0",
+    "numpy",
     "rosbags==0.9.23",
     "open3d",
-    "matplotlib>=3.8",
+    "matplotlib",
     "typer==0.12.3",
+    "click>=8.0.0,<8.2.0",
     "natsort==8.4.0",
     "rich==13.7.1",
 ]
-
 [project.scripts]
 mad_icp = "mad_icp.apps.mad_icp:run"
 
