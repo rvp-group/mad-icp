@@ -37,11 +37,12 @@ import sys
 import yaml
 import numpy as np
 from datetime import datetime
-from mad_icp.apps.utils.utils import write_transformed_pose
+from mad_icp.apps.utils.utils_ext import get_transformed_pose, write_transformed_pose
 from mad_icp.apps.utils.ros_reader import Ros1Reader
 from mad_icp.apps.utils.ros2_reader import Ros2Reader
 from mad_icp.apps.utils.mcap_reader import McapReader
 from mad_icp.apps.utils.kitti_reader import KittiReader
+from mad_icp.apps.utils.ros_publisher import Ros1Publisher
 from mad_icp.apps.utils.visualizer import Visualizer
 from mad_icp.configurations.datasets.dataset_configurations import DatasetConfiguration_lut
 from mad_icp.configurations.mad_params import MADConfiguration_lut
@@ -83,7 +84,9 @@ def main(data_path: Annotated[
         realtime: Annotated[
         bool, typer.Option(help="if true anytime realtime", show_default=True)] = False,
         noviz: Annotated[
-        bool, typer.Option(help="if true visualizer on", show_default=True)] = False) -> None:
+        bool, typer.Option(help="if true visualizer on", show_default=True)] = False,
+        noros: Annotated[
+        bool, typer.Option(help="if true do not publish to ros", show_default=True)] = False) -> None:
     if not data_path.exists():
         console.print(f"[red] {data_path} does not exist!")
         sys.exit(-1)
@@ -93,11 +96,18 @@ def main(data_path: Annotated[
         estimate_path.mkdir(parents=True, exist_ok=True)
 
     visualizer = None
+    publisher = None
     if not noviz:
         visualizer = Visualizer()
 
+    try:
+        if not noros:
+            publisher = Ros1Publisher()
+    except Exception as e:
+        console.print(f"[red] Error: {e}")
+
     reader_type = InputDataInterface.kitti
-    
+
     if len(list(data_path.glob("*.bag"))) != 0:
         console.print("[yellow] The dataset is in ros bag format")
         reader_type = InputDataInterface.ros1
@@ -152,7 +162,6 @@ def main(data_path: Annotated[
     rho_ker = mad_icp_cf["rho_ker"]
     n = mad_icp_cf["n"]
 
-
     # check some params for machine
     if (realtime and num_keyframes > num_cores):
         console.print(
@@ -169,32 +178,52 @@ def main(data_path: Annotated[
 
     with InputDataInterface_lut[reader_type](data_path, min_range, max_range, topic=topic, sensor_hz=sensor_hz, apply_correction=apply_correction) as reader:
         t_start = datetime.now()
-        for ts, points in track(reader, description="processing..."):
-
-            print("Loading frame #", pipeline.currentID())
+        for ts, points in reader:  #track(reader, description="processing..."):
 
             points = VectorEigen3d(points)
             t_end = datetime.now()
             t_delta = t_end - t_start
-            print("Time for reading points [ms]: ",
-                  t_delta.total_seconds() * 1000)
+            t_delta_read_ms = t_delta.total_seconds() * 1000
 
             t_start = datetime.now()
             pipeline.compute(ts, points)
             t_end = datetime.now()
             t_delta = t_end - t_start
+            t_delta_odom_ms = t_delta.total_seconds() * 1000
             print(
-                "Time for odometry estimation [ms]: ", t_delta.total_seconds() * 1000)
+                f"ID {pipeline.currentID()}: "
+                f"Time of reading points / odometry estimation [ms]: {t_delta_read_ms}, {t_delta_odom_ms}"
+            )
 
             lidar_to_world = pipeline.currentPose()
-            write_transformed_pose(
-                estimate_file, lidar_to_world, lidar_to_base)
+            base_to_world = get_transformed_pose(lidar_to_world, lidar_to_base)
+            write_transformed_pose(estimate_file, base_to_world)
+
+            current_leaves = pipeline.currentLeaves()
+
+            if publisher is not None:
+                t_start = datetime.now()
+                publisher.publish_imu(ts, base_to_world)
+                publisher.publish_current_cloud(ts, current_leaves)
+
+                if pipeline.isMapUpdated():
+                    model_leaves = pipeline.modelLeaves()
+                    kf_pose = pipeline.keyframePose()
+                    print(f"MAP UPDATED: {[len(x) for x in [current_leaves, model_leaves]]}")
+                    print(f"kf_pose:\n{kf_pose}")
+                    publisher.publish_complete_cloud(ts, model_leaves)
+
+                t_end = datetime.now()
+                t_delta = t_end - t_start
+                t_delta_publish_ms = t_delta.total_seconds() * 1000
+                print(f"Time for publishing [ms]: {t_delta_publish_ms}")
 
             if not noviz:
                 t_start = datetime.now()
                 if pipeline.isMapUpdated():
-                    visualizer.update(pipeline.currentLeaves(), pipeline.modelLeaves(
-                    ), lidar_to_world, pipeline.keyframePose())
+                    visualizer.update(
+                        pipeline.currentLeaves(), pipeline.modelLeaves(), lidar_to_world, pipeline.keyframePose()
+                    )
                 else:
                     visualizer.update(pipeline.currentLeaves(),
                                       None, lidar_to_world, None)
